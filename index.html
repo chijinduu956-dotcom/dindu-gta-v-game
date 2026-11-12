@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>DINDU GTA V</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:white;font-family:Arial,sans-serif;touch-action:none}
+#world{position:absolute;inset:0;width:100%;height:100%;display:block;background:#82939a}
+#hud{position:absolute;inset:0;pointer-events:none}
+.top{position:absolute;top:max(9px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.brand{background:#101820dd;border:1px solid #64747b;border-radius:9px;padding:8px 11px;min-width:130px;box-shadow:0 3px 12px #0007}
+.brand b{font-size:15px;letter-spacing:1px;color:#fff}
+.brand small{display:block;font-size:8px;color:#c6a66b;letter-spacing:2px;margin-top:3px}
+.stats{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.stat{background:#101820dd;border:1px solid #64747b;border-radius:7px;padding:7px 9px;font-size:10px;font-weight:bold;white-space:nowrap}
+.stat span{color:#e6c17c}
+#missionHud{position:absolute;top:78px;left:10px;max-width:65%;padding:9px 11px;border-left:3px solid #e8b85d;border-radius:4px;background:#101820d9;box-shadow:0 2px 10px #0005}
+#missionHud small{display:block;color:#e5bd71;font-size:9px;letter-spacing:1.5px;margin-bottom:4px}
+#missionTitle{font-size:13px;font-weight:bold}
+#missionBrief{font-size:10px;color:#c7d0d2;margin-top:4px;line-height:1.35}
+#minimapBox{position:absolute;right:10px;top:82px;width:112px;height:112px;border:2px solid #bdc4c2;border-radius:9px;background:#111e;padding:3px;box-shadow:0 2px 10px #0008}
+#minimap{width:100%;height:100%;display:block;border-radius:5px}
+#topButtons{position:absolute;right:10px;top:10px;display:flex;gap:5px;pointer-events:auto}
+.smallBtn{border:1px solid #77868c;background:#101820e8;color:white;border-radius:7px;padding:8px 9px;font-size:9px;font-weight:bold;letter-spacing:.5px}
+#joystick{position:absolute;left:18px;bottom:max(23px,env(safe-area-inset-bottom));width:126px;height:126px;border-radius:50%;background:#18252c99;border:2px solid #b8c2c277;box-shadow:inset 0 0 18px #0008;pointer-events:auto;touch-action:none}
+#stick{position:absolute;left:35px;top:35px;width:52px;height:52px;border-radius:50%;background:linear-gradient(145deg,#aeb9bd,#34454d);border:2px solid #e0e5e4;box-shadow:0 4px 12px #0009}
+#actions{position:absolute;right:13px;bottom:max(22px,env(safe-area-inset-bottom));width:164px;pointer-events:auto}
+#actionGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.action{height:57px;border-radius:50%;border:2px solid #c3cbcd;background:linear-gradient(145deg,#34434aeb,#101b22ee);color:white;font-size:9px;font-weight:bold;letter-spacing:.5px;box-shadow:0 4px 10px #0008;touch-action:none}
+.action:active,.smallBtn:active{background:#8b6d3f}
+#interact{display:block;margin:0 0 8px auto;width:112px;height:37px;border-radius:9px;background:#a77d3aee;border:1px solid #f0cf91;color:#fff;font-weight:bold;font-size:10px}
+#toast{position:absolute;left:50%;bottom:180px;transform:translateX(-50%);background:#101820eF;border:1px solid #c8a15e;border-radius:8px;padding:9px 13px;font-size:11px;text-align:center;max-width:85%;display:none}
+#prompt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#101820c9;border:1px solid #b99558;padding:8px 12px;border-radius:7px;font-size:10px;display:none;text-align:center}
+.overlay{position:absolute;inset:0;background:linear-gradient(120deg,#09131bee,#17262aeF);display:flex;align-items:center;justify-content:center;padding:18px;z-index:5}
+.overlay.hidden{display:none}
+.panel{width:min(440px,100%);max-height:92%;overflow:auto;background:#17242b;border:1px solid #8b9a9b;border-radius:14px;padding:20px;box-shadow:0 12px 50px #000b}
+.logo{text-align:center;font-size:27px;font-weight:900;letter-spacing:2px;text-shadow:0 3px 15px #000}
+.logo span{color:#e5bd71}
+.subtitle{text-align:center;font-size:9px;letter-spacing:4px;color:#c9b17f;margin:8px 0 20px}
+.coverText{text-align:center;font-size:12px;line-height:1.6;color:#d5dfe0}
+.primary{width:100%;border:1px solid #f2d49c;background:linear-gradient(120deg,#99713a,#d0a75e);padding:14px;border-radius:8px;color:#fff;font-weight:900;font-size:13px;margin-top:17px}
+.secondary{width:100%;border:1px solid #77878b;background:#263840;padding:11px;border-radius:8px;color:#fff;font-weight:bold;font-size:11px;margin-top:9px}
+#missionList{max-height:60vh;overflow:auto;margin-top:12px}
+.chapter{font-size:10px;letter-spacing:1.2px;color:#e4bd75;margin:14px 0 6px}
+.missionRow{display:flex;align-items:center;gap:8px;background:#23333a;border-radius:6px;padding:8px;margin:4px 0;font-size:10px}
+.missionRow .num{color:#d2aa65;min-width:24px}
+.missionRow.locked{opacity:.42}
+.missionRow.done{border-left:3px solid #6dba8d}
+.missionRow.current{border-left:3px solid #e7bc69;background:#35434a}
+#mapLarge{width:100%;height:auto;aspect-ratio:1;border-radius:8px;background:#111d22}
+.gadget{background:#283b43;border:1px solid #697d83;border-radius:8px;padding:12px;margin:7px 0;font-size:11px}
+.gadget button{float:right;background:#a77d3a;color:white;border:0;padding:7px 10px;border-radius:5px}
+#gameError{position:absolute;inset:0;background:#18242b;color:white;padding:30px;display:none;z-index:20}
+@media(max-height:620px){
+ #joystick{width:100px;height:100px}
+ #stick{left:27px;top:27px;width:42px;height:42px}
+ .action{height:48px}
+ #actions{width:145px}
+ #missionHud{top:65px}
+ #minimapBox{top:70px;width:90px;height:90px}
+}
+/* DINDU_CAR_CONTROLS_CSS */
+*{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent}
+#carControls{display:none;grid-template-columns:1fr 1fr;gap:6px;width:100%}
+#carControls.active{display:grid!important}
+#carControls button{height:46px;min-width:0;border:1px solid #b9c5c8;border-radius:9px;background:linear-gradient(145deg,#344750,#101b22);color:white;font-size:10px;font-weight:900;touch-action:none}
+#carControls #carExit{grid-column:1/-1;background:linear-gradient(145deg,#87433c,#4b2424)}
+body.car-mode #actionGrid,body.car-mode #interact{display:none!important}
+
+/* DINDU_PREMIUM_LAUNCHER */
+#launcher{z-index:30;min-height:100vh;min-height:100dvh;background:radial-gradient(ellipse at 50% 38%,#424950 0%,#20252b 43%,#080a0d 100%);padding:22px}
+.launchPanel{position:relative;overflow:hidden;width:min(460px,100%);min-height:min(520px,78vh);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 22px;border:1px solid #858d95;border-radius:22px;background:linear-gradient(145deg,#252b32,#111419 72%);box-shadow:0 18px 65px #000c,inset 0 1px #ffffff26}
+.launchPanel:before{content:"";position:absolute;inset:10px;border:1px solid #aeb4bb38;border-radius:15px;pointer-events:none}
+.launchCrown{font-size:34px;margin-bottom:18px;filter:drop-shadow(0 3px 9px #fff5)}
+.launchLogo{font-size:clamp(22px,6vw,32px);font-weight:950;letter-spacing:3px;color:#f5f6f7;text-shadow:0 3px 16px #fff4}
+.getGameText{margin:27px 0 12px;font-size:clamp(36px,10vw,58px);font-weight:1000;letter-spacing:.12em;white-space:nowrap;background:linear-gradient(105deg,#fff 0%,#858d96 23%,#fff 43%,#9ca4ad 65%,#fff 85%);background-size:250% 100%;background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 4px 12px #ffffff38);animation:dinduGetGame 2.8s linear infinite}
+@keyframes dinduGetGame{0%{background-position:100% 50%;transform:scale(.98)}100%{background-position:-150% 50%;transform:scale(1.02)}}
+.launchSub{font-size:9px;letter-spacing:2.4px;text-align:center;color:#aeb5bd;margin:0 0 38px}
+.openHtmlBtn{position:relative;width:100%;max-width:300px;padding:16px;border:1px solid #fff;background:linear-gradient(110deg,#f4f5f6,#9ba2aa,#eceef0);border-radius:10px;color:#171a1f;font-size:13px;font-weight:950;letter-spacing:2px;box-shadow:0 5px 22px #fff2;touch-action:manipulation}
+.openHtmlBtn:active{transform:scale(.97);background:#fff}
+.launchFoot{margin-top:24px;font-size:8px;letter-spacing:2px;color:#858d95;text-align:center}
+@media(prefers-reduced-motion:reduce){.getGameText{animation:none}}
+
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<div id="hud">
+  <div class="top">
+    <div class="brand"><b>🔱 DINDU GTA V</b><small>OPEN CITY EXPERIENCE</small></div>
+    <div class="stats">
+      <div class="stat">CASH <span id="cash">$1,200</span></div>
+      <div class="stat">XP <span id="xp">0</span></div>
+      <div class="stat">LVL <span id="level">1</span></div>
+    </div>
+  </div>
+
+  <div id="missionHud">
+    <small id="missionCount">MISSION 01 / 100</small>
+    <div id="missionTitle">THE ARRIVAL</div>
+    <div id="missionBrief">Explore Dindu City.</div>
+  </div>
+
+  <div id="minimapBox"><canvas id="minimap" width="180" height="180"></canvas></div>
+
+  <div id="topButtons">
+    <button class="smallBtn" id="mapBtn">MAP</button>
+    <button class="smallBtn" id="missionsBtn">MISSIONS</button>
+    <button class="smallBtn" id="pauseBtn">Ⅱ</button>
+  </div>
+
+  <div id="joystick"><div id="stick"></div></div>
+
+  <div id="actions">
+    <button id="interact" class="action">INTERACT</button>
+    <div id="actionGrid">
+      <button id="punch" class="action">👊 PUNCH</button>
+      <button id="jump" class="action">⬆ JUMP</button>
+      <button id="run" class="action">🏃 RUN</button>
+      <button id="slot" class="action">SLOT</button>
+    </div><div id="carControls" style="display:none"><button id="carAccelerate">ACCELERATE</button><button id="carBrake">BRAKE</button><button id="carReverse">REVERSE</button><button id="carExit">LEAVE CAR</button></div></div>
+
+  <div id="toast"></div>
+  <div id="prompt"></div>
+</div>
+
+<div id="launcher" class="overlay launchOverlay"><div class="launchPanel"><div class="launchCrown">🔱</div><div class="launchLogo">DINDU GTA V</div><div class="getGameText">GET GAME</div><div class="launchSub">THE CITY IS YOURS TO EXPLORE</div><button type="button" id="openHtmlBtn" class="openHtmlBtn">OPEN HTML　↗</button><div class="launchFoot">100 MISSIONS · ONE CITY · YOUR STORY</div></div></div>
+<div id="welcome" class="overlay hidden">
+  <div class="panel">
+    <div class="logo">DINDU <span>GTA V</span></div>
+    <div class="subtitle">THE CITY IS YOURS TO EXPLORE</div>
+    <div class="coverText">Welcome to Dindu City.</div>
+    <button id="startBtn" class="primary">ENTER DINDU CITY</button>
+    
+  </div>
+</div>
+
+<div id="missionsOverlay" class="overlay hidden">
+  <div class="panel">
+    <div class="logo" style="font-size:20px">STORY <span>MISSIONS</span></div>
+    <div class="coverText" id="campaignProgress">0 / 100 completed</div>
+    <div id="missionList"></div>
+    <button id="closeMissions" class="secondary">RETURN TO CITY</button>
+  </div>
+</div>
+
+<div id="mapOverlay" class="overlay hidden">
+  <div class="panel">
+    <div class="logo" style="font-size:20px">DINDU <span>CITY MAP</span></div>
+    <canvas id="mapLarge" width="500" height="500"></canvas>
+    <div class="coverText">White marker: your location · Gold marker: mission destination</div>
+    <button id="closeMap" class="secondary">RETURN TO CITY</button>
+  </div>
+</div>
+
+<div id="gadgetOverlay" class="overlay hidden">
+  <div class="panel">
+    <div class="logo" style="font-size:20px">EQUIPMENT <span>SLOT</span></div>
+    <div class="coverText">Select a fictional arcade gadget.</div>
+    <div class="gadget">🛡️ PULSE SHIELD <button data-gadget="PULSE SHIELD">SELECT</button></div>
+    <div class="gadget">⚡ SPEED BURST <button data-gadget="SPEED BURST">SELECT</button></div>
+    <div class="gadget">📍 GPS PING <button data-gadget="GPS PING">SELECT</button></div>
+    <button id="closeGadget" class="secondary">RETURN TO CITY</button>
+  </div>
+</div>
+
+<div id="gameError"></div>
+
+<script>
+(function(){
+'use strict';
+
+const canvas=document.getElementById('world');
+const gl=canvas.getContext('webgl',{antialias:true,alpha:false});
+const errorBox=document.getElementById('gameError');
+
+if(!gl){
+  errorBox.style.display='block';
+  errorBox.textContent='This device could not start the 3D graphics engine. Try opening DINDU GTA V on a newer Android browser.';
+  return;
+}
+
+const missionChapters=[
+['NEW BEGINNINGS',[
+'The Arrival','Find the Plaza','Meet the Mechanic','Learn the Streets','The First Errand','City Pass','Skyline View','Neighbourhood Watch','Delivery Run','A New Beginning']],
+['FIRST WHEELS',[
+'Borrowed Wheels','Garage Visit','First Drive','Parking Practice','The Long Road','Traffic School','Car Collection','Engine Check','Highway Trial','Open Road']],
+['CITY HUSTLE',[
+'Morning Shift','Taxi Request','Courier Run','Food Delivery','Lost Passenger','Rush Hour','Night Shift','Helping Hand','Big Tip','Honest Pay']],
+['STREET CHAMPION',[
+'Starting Grid','Corner Practice','Harbour Sprint','Downtown Circuit','Hill Climb','Night Race','Precision Driver','Final Lap','City Champion','Racing Legend']],
+['EMERGENCY CALLS',[
+'Call for Help','Lost Tourist','Safe Passage','Rescue Route','Hospital Run','Search Party','Lifeguard Assist','Storm Warning','Recovery Team','City Hero']],
+['EMPIRE BUILDER',[
+'Home Sweet Home','Apartment Hunt','First Investment','Shop Front','Business Hours','Renovation Day','New Neighbour','Property Tour','City Estate','Empire Builder']],
+['CITY SECRETS',[
+'Hidden Alley','The Old Station','Missing Sign','Rooftop Clue','Forgotten Park','Museum Visit','Harbour Secret','Skyline Code','Final Clue','Truth of the City']],
+['THE BIG CHALLENGES',[
+'Time Trial','Parkour Route','Memory Lane','Precision Parking','Tunnel Run','Rooftop Dash','Maze Runner','The Long Jump','Skill Showcase','Master of the City']],
+['THE ELITE',[
+'Luxury Life','Supercar Test','VIP Delivery','Penthouse View','Executive Route','Rare Collection','Grand Tour','Elite Circuit','High Society','The Invitation']],
+['THE DINDU LEGEND',[
+'Legacy Begins','A New District','The City Festival','Final Delivery','Last Drive','City Lights','The Championship','The Grand Tour','Legend’s Choice','Dindu Legend']]
+];
+
+const modes=['ON FOOT','CITY MEETUP','DRIVING','CHECKPOINT'];
+const missions=[];
+missionChapters.forEach((chapter,ci)=>{
+  chapter[1].forEach((name,mi)=>{
+    const number=ci*10+mi+1;
+    missions.push({
+      number,
+      chapter:chapter[0],
+      name,
+      mode:modes[(number-1)%4],
+      reward:250+number*35,
+      xp:100+number*15,
+      targetIndex:(number*7+3)%16
+    });
+  });
+});
+
+const targetSpots=[
+  [0,24],[36,24],[72,0],[36,-24],
+  [0,-72],[-36,-24],[-72,0],[-36,24],
+  [0,72],[72,72],[-72,-72],[0,0],
+  [72,-36],[-72,36],[36,72],[-36,-72]
+];
+
+const freshSave={next:1,cash:1200,xp:0,done:0,x:0,z:0,yaw:0};
+let saveData={...freshSave};
+
+try{
+  const stored=localStorage.getItem('dindu_gtav_save_v1');
+  if(stored) saveData={...freshSave,...JSON.parse(stored)};
+}catch(e){}
+
+const player={
+  x:Number(saveData.x)||0,
+  z:Number(saveData.z)||0,
+  y:0,vy:0,yaw:Number(saveData.yaw)||0,
+  inCar:false,carIndex:-1
+};
+
+let nextMission=Math.max(1,Math.min(101,Number(saveData.next)||1));
+let cash=Math.max(0,Number(saveData.cash)||1200);
+let xp=Math.max(0,Number(saveData.xp)||0);
+let completed=Math.max(0,Number(saveData.done)||0);
+
+let cameraYaw=Number(saveData.yaw)||0;let cameraOffset=0;
+let running=false;
+let paused=true;
+let runHeld=false;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carSpeed=0;
+let stickX=0,stickY=0;
+let jumpPressed=false;
+let punchTimer=0;
+let shieldTimer=0;
+let speedTimer=0;
+let selectedGadget='PULSE SHIELD';
+let lastSave=0;
+let lastToast=0;
+let lastFrame=0;
+
+const obstacles=[];
+const staticData=[];
+const parkedCars=[
+  {x:4,z:0,yaw:Math.PI/2,color:[0.58,0.12,0.10]},
+  {x:20,z:22,yaw:0,color:[0.10,0.26,0.42]},
+  {x:-24,z:18,yaw:0,color:[0.55,0.48,0.30]},
+  {x:55,z:-18,yaw:Math.PI/2,color:[0.18,0.36,0.27]}
+];
+
+function color(r,g,b){return [r/255,g/255,b/255];}
+function vecNorm(v){const l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l];}
+function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
+
+function vertex(out,p,c,n){
+  out.push(p[0],p[1],p[2],c[0],c[1],c[2],n[0],n[1],n[2]);
+}
+
+const faces=[
+  {n:[0,0,1],p:[[-.5,-.5,.5],[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5]]},
+  {n:[0,0,-1],p:[[.5,-.5,-.5],[-.5,-.5,-.5],[-.5,.5,-.5],[.5,.5,-.5]]},
+  {n:[1,0,0],p:[[.5,-.5,.5],[.5,-.5,-.5],[.5,.5,-.5],[.5,.5,.5]]},
+  {n:[-1,0,0],p:[[-.5,-.5,-.5],[-.5,-.5,.5],[-.5,.5,.5],[-.5,.5,-.5]]},
+  {n:[0,1,0],p:[[-.5,.5,.5],[.5,.5,.5],[.5,.5,-.5],[-.5,.5,-.5]]},
+  {n:[0,-1,0],p:[[-.5,-.5,-.5],[.5,-.5,-.5],[.5,-.5,.5],[-.5,-.5,.5]]}
+];
+
+function addQuad(out,p1,p2,p3,p4,c,n){
+  const points=[p1,p2,p3,p1,p3,p4];
+  for(const p of points)vertex(out,p,c,n);
+}
+function addBox(out,x,y,z,w,h,d,c,rot=0){
+  const co=Math.cos(rot),si=Math.sin(rot);
+  for(const f of faces){
+    const p=f.p.map(v=>{
+      const lx=v[0]*w,lz=v[2]*d;
+      return [x+lx*co+lz*si,y+v[1]*h,z-lx*si+lz*co];
+    });
+    const n=[f.n[0]*co+f.n[2]*si,f.n[1],-f.n[0]*si+f.n[2]*co];
+    addQuad(out,p[0],p[1],p[2],p[3],c,n);
+  }
+}
+function addTriangle(out,a,b,c,co){
+  let n=vecNorm(cross([b[0]-a[0],b[1]-a[1],b[2]-a[2]],[c[0]-a[0],c[1]-a[1],c[2]-a[2]]));
+  const mid=[(a[0]+b[0]+c[0])/3,(a[1]+b[1]+c[1])/3,(a[2]+b[2]+c[2])/3];
+  if(n[0]*mid[0]+n[1]*mid[1]+n[2]*mid[2]<0)n=n.map(v=>-v);
+  vertex(out,a,co,n);vertex(out,b,co,n);vertex(out,c,co,n);
+}
+function addSphere(out,x,y,z,rx,ry,rz,co,segments=12,rings=8){
+  for(let i=0;i<rings;i++){
+    const a1=Math.PI*i/rings,a2=Math.PI*(i+1)/rings;
+    for(let j=0;j<segments;j++){
+      const b1=2*Math.PI*j/segments,b2=2*Math.PI*(j+1)/segments;
+      const point=(a,b)=>[x+rx*Math.sin(a)*Math.cos(b),y+ry*Math.cos(a),z+rz*Math.sin(a)*Math.sin(b)];
+      const p1=point(a1,b1),p2=point(a2,b1),p3=point(a2,b2),p4=point(a1,b2);
+      addTriangle(out,p1,p2,p3,co);addTriangle(out,p1,p3,p4,co);
+    }
+  }
+}
+function seeded(i){const v=Math.sin(i*127.1+19.7)*43758.5453;return v-Math.floor(v);}
+
+function addBuilding(x,z,w,d,h,shade,id){
+  const wall=shade;
+  addBox(staticData,x,h/2,z,w,h,d,wall);
+  addBox(staticData,x,h+.2,z,w+.5,.4,d+.5,color(48,57,61));
+  obstacles.push({minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2});
+
+  const floors=Math.floor((h-4)/3.1);
+  const front=z-d/2-.07;
+  for(let row=0;row<floors;row++){
+    for(let col=0;col<3;col++){
+      const wx=x-w*.29+col*w*.29;
+      const wy=3+row*3.1;
+      const lit=seeded(id*31+row*7+col)>.57;
+      const glass=lit?color(181,160,112):color(48,77,91);
+      addBox(staticData,wx,wy,front,.85,1.45,.10,glass);
+      addBox(staticData,wx,wy-0.92,front,.95,.08,.13,color(53,63,67));
+    }
+  }
+  const side=x-w/2-.07;
+  for(let row=0;row<floors;row++){
+    for(let col=0;col<2;col++){
+      const wz=z-d*.25+col*d*.5;
+      addBox(staticData,side,3+row*3.1,wz,.10,1.4,1.0,
+        seeded(id*17+row*5+col)>.7?color(177,151,105):color(46,73,84));
+    }
+  }
+  addBox(staticData,x+w*.25,h+.55,z,.9,.7,.9,color(62,69,70));
+  addBox(staticData,x-w*.25,h+.55,z,1.2,.4,.75,color(77,80,78));
+}
+
+function buildCity(){
+  addBox(staticData,0,-.42,0,210,.8,210,color(64,76,75));
+
+  const asphalt=color(35,43,47);
+  const lane=color(178,169,137);
+  const sidewalk=color(105,111,109);
+  for(let k=-2;k<=2;k++){
+    const p=k*36;
+    addBox(staticData,p,.02,0,11,.06,205,asphalt);
+    addBox(staticData,0,.02,p,205,.06,11,asphalt);
+    for(let t=-96;t<96;t+=15){
+      addBox(staticData,p,.07,t,.14,.025,5,lane);
+      addBox(staticData,t,.07,p,5,.025,.14,lane);
+    }
+    for(const side of [-1,1]){
+      addBox(staticData,p+side*6.5,.055,0,1.5,.13,205,sidewalk);
+      addBox(staticData,0,.055,p+side*6.5,205,.13,1.5,sidewalk);
+    }
+  }
+
+  let id=1;
+  for(let bx=-2;bx<=1;bx++){
+    for(let bz=-2;bz<=1;bz++){
+      const cx=bx*36+18,cz=bz*36+18;
+      const spots=[[-5,-5],[5,-5],[-5,5],[5,5]];
+      for(let j=0;j<spots.length;j++){
+        const s=seeded(id*9+j);
+        const w=7.5+s*2.7,d=7.5+seeded(id*13+j)*3;
+        const h=15+seeded(id*21+j)*36;
+        const palette=[
+          color(80,88,89),color(91,94,91),color(70,82,87),
+          color(105,102,92),color(64,77,81),color(82,91,96)
+        ];
+        const col=palette[Math.floor(seeded(id*29+j)*palette.length)];
+        addBuilding(cx+spots[j][0],cz+spots[j][1],w,d,h,col,id++);
+      }
+    }
+  }
+
+  for(let k=-2;k<=2;k++){
+    const p=k*36;
+    for(let t=-88;t<=88;t+=29){
+      addBox(staticData,p+7.6,2.1,t,.16,4.2,.16,color(54,62,64));
+      addBox(staticData,p+7.6,4.2,t,.7,.16,.75,color(188,169,119));
+      addBox(staticData,t,2.1,p+7.6,.16,4.2,.16,color(54,62,64));
+      addBox(staticData,t,4.2,p+7.6,.75,.16,.7,color(188,169,119));
+    }
+  }
+
+  const treeSpots=[[-48,15],[-48,28],[-12,52],[12,52],[48,15],[48,28],[15,-48],[-15,-48]];
+  treeSpots.forEach((p,i)=>{
+    addBox(staticData,p[0],1.4,p[1],.65,2.8,.65,color(86,62,43));
+    addSphere(staticData,p[0],3.8,p[1],2.1,2.6,2.1,color(49,74,60),10,7);
+  });
+
+  addBox(staticData,-54,.2,18,12,.3,8,color(99,105,100));
+  addBox(staticData,-54,3.4,18,.25,6,.25,color(78,82,82));
+  addBox(staticData,-54,6.5,18,3,.3,1.2,color(194,157,86));
+
+  addBox(staticData,0,.02,-104,210,.1,2,color(89,99,97));
+  addBox(staticData,0,.02,104,210,.1,2,color(89,99,97));
+}
+buildCity();
+
+const vertexShader=`
+attribute vec3 aPosition;
+attribute vec3 aColor;
+attribute vec3 aNormal;
+uniform mat4 uVP;
+varying vec3 vColor;
+varying float vFog;
+void main(){
+  vec4 clip=uVP*vec4(aPosition,1.0);
+  gl_Position=clip;
+  vec3 light=normalize(vec3(-0.45,0.82,0.35));
+  float diffuse=max(dot(normalize(aNormal),light),0.0);
+  vColor=aColor*(0.48+diffuse*0.68);
+  vFog=clamp((clip.w-45.0)/125.0,0.0,0.82);
+}`;
+const fragmentShader=`
+precision mediump float;
+varying vec3 vColor;
+varying float vFog;
+void main(){
+  vec3 fog=vec3(0.38,0.46,0.48);
+  gl_FragColor=vec4(mix(vColor,fog,vFog),1.0);
+}`;
+function compile(type,source){
+  const s=gl.createShader(type);
+  gl.shaderSource(s,source);gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+let program;
+try{
+  program=gl.createProgram();
+  gl.attachShader(program,compile(gl.VERTEX_SHADER,vertexShader));
+  gl.attachShader(program,compile(gl.FRAGMENT_SHADER,fragmentShader));
+  gl.linkProgram(program);
+  if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
+}catch(e){
+  errorBox.style.display='block';
+  errorBox.textContent='The 3D city could not initialise: '+e.message;
+  return;
+}
+
+gl.useProgram(program);
+const loc={
+  pos:gl.getAttribLocation(program,'aPosition'),
+  col:gl.getAttribLocation(program,'aColor'),
+  nor:gl.getAttribLocation(program,'aNormal'),
+  vp:gl.getUniformLocation(program,'uVP')
+};
+const staticBuffer=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(staticData),gl.STATIC_DRAW);
+const staticCount=staticData.length/9;
+const dynamicBuffer=gl.createBuffer();
+
+function bindBuffer(buffer,data){
+  gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+  if(data)gl.bufferData(gl.ARRAY_BUFFER,data,gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(loc.pos);
+  gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,36,0);
+  gl.enableVertexAttribArray(loc.col);
+  gl.vertexAttribPointer(loc.col,3,gl.FLOAT,false,36,12);
+  gl.enableVertexAttribArray(loc.nor);
+  gl.vertexAttribPointer(loc.nor,3,gl.FLOAT,false,36,24);
+}
+function drawBuffer(buffer,count,data){
+  bindBuffer(buffer,data);
+  gl.drawArrays(gl.TRIANGLES,0,count);
+}
+
+function perspective(fov,aspect,near,far){
+  const f=1/Math.tan(fov/2),nf=1/(near-far);
+  const o=new Float32Array(16);
+  o[0]=f/aspect;o[5]=f;o[10]=(far+near)*nf;o[11]=-1;
+  o[14]=2*far*near*nf;o[15]=0;
+  return o;
+}
+function lookAt(eye,center,up){
+  const z=vecNorm([eye[0]-center[0],eye[1]-center[1],eye[2]-center[2]]);
+  const x=vecNorm(cross(up,z));
+  const y=cross(z,x);
+  const o=new Float32Array(16);
+  o[0]=x[0];o[1]=y[0];o[2]=z[0];o[3]=0;
+  o[4]=x[1];o[5]=y[1];o[6]=z[1];o[7]=0;
+  o[8]=x[2];o[9]=y[2];o[10]=z[2];o[11]=0;
+  o[12]=-x[0]*eye[0]-x[1]*eye[1]-x[2]*eye[2];
+  o[13]=-y[0]*eye[0]-y[1]*eye[1]-y[2]*eye[2];
+  o[14]=-z[0]*eye[0]-z[1]*eye[1]-z[2]*eye[2];o[15]=1;
+  return o;
+}
+function multiply(a,b){
+  const o=new Float32Array(16);
+  for(let c=0;c<4;c++)for(let r=0;r<4;r++){
+    o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];
+  }
+  return o;
+}
+
+function localPoint(x,z,yaw,dx,dz){
+  const c=Math.cos(yaw),s=Math.sin(yaw);
+  return [x+dx*c+dz*s,z-dx*s+dz*c];
+}
+function drawCar(out,x,z,yaw,body){
+  const glass=color(33,57,67),rubber=color(22,25,26),metal=color(93,99,99);
+  addBox(out,x,.66,z,2.15,.58,4.1,body,yaw);
+  addBox(out,x,1.13,z-.2,1.72,.82,2.05,glass,yaw);
+  addBox(out,x,1.56,z-.2,1.48,.13,1.8,color(81,105,111),yaw);
+  addBox(out,x,.42,z+2.05,2.12,.18,.18,metal,yaw);
+  addBox(out,x,.42,z-2.05,2.12,.18,.18,metal,yaw);
+  for(const dx of [-.96,.96])for(const dz of [-1.35,1.35]){
+    const p=localPoint(x,z,yaw,dx,dz);
+    addSphere(out,p[0],.43,p[1],.24,.43,.43,rubber,14,10);const hub=localPoint(x,z,yaw,dx+(dx>0?0.22:-0.22),dz);addSphere(out,hub[0],.43,hub[1],.075,.23,.23,metal,12,8);
+  }
+  const front=localPoint(x,z,yaw,0,2.07);
+  addBox(out,front[0],.72,front[1],.6,.16,.07,color(208,194,151),yaw);
+}
+
+function drawPerson(out,x,z,yaw,walk=0,punch=false){
+  const torso=color(38,83,94),shirt=color(196,154,82),pants=color(45,51,58);
+  const skin=color(164,126,99),shoe=color(27,29,29);
+  const point=(dx,dz)=>localPoint(x,z,yaw,dx,dz);
+  const p1=point(0,0);
+  addBox(out,p1[0],1.15,p1[1],.7,.75,.42,torso,yaw);
+  addBox(out,p1[0],1.57,p1[1],.5,.12,.4,shirt,yaw);
+  addSphere(out,p1[0],1.83,p1[1],.22,.25,.22,skin,10,7);
+  addSphere(out,p1[0],1.99,p1[1],.22,.08,.22,color(34,34,32),10,5);
+  const stride=Math.sin(walk)*.25;
+  for(const side of [-1,1]){
+    const lp=point(side*.19,side===-1?stride:-stride);
+    addBox(out,lp[0],.47,lp[1],.27,.78,.3,pants,yaw);
+    const foot=point(side*.19,(side===-1?stride:-stride)+.12);
+    addBox(out,foot[0],.08,foot[1],.32,.16,.45,shoe,yaw);
+    let armForward=0;
+    if(punch&&side===1)armForward=.48;
+    const ap=point(side*.48,armForward+(side===-1?-stride:stride));
+    addBox(out,ap[0],1.14,ap[1],.23,.66,.25,shirt,yaw);
+    const hand=point(side*.48,armForward+(side===-1?-stride:stride)+.04);
+    addSphere(out,hand[0],.79,hand[1],.13,.13,.13,skin,8,6);
+  }
+}
+
+function currentMission(){
+  return nextMission<=100?missions[nextMission-1]:null;
+}
+function targetFor(m){
+  const p=targetSpots[m.targetIndex];
+  return {x:p[0],z:p[1]};
+}
+function distance(x1,z1,x2,z2){return Math.hypot(x1-x2,z1-z2);}
+
+function drawMarker(out,x,z,time){
+  const pulse=1+Math.sin(time*.004)*.16;
+  const gold=color(226,175,75);
+  addBox(out,x,1.35,z,.13,2.7,.13,gold);
+  addSphere(out,x,2.85,z,.42,.42,.42,color(241,211,130),10,7);
+  for(let i=0;i<18;i++){
+    const a=i*Math.PI*2/18;
+    addBox(out,x+Math.cos(a)*2*pulse,.12,z+Math.sin(a)*2*pulse,.55,.09,.12,gold,a);
+  }
+}
+function dynamicScene(time){
+  const out=[];
+  parkedCars.forEach((c,i)=>{
+    if(player.inCar&&player.carIndex===i)return;
+    drawCar(out,c.x,c.z,c.yaw,c.color);
+  });
+  if(player.inCar){
+    drawCar(out,player.x,player.z,player.yaw,parkedCars[player.carIndex].color);
+  }else{
+    const avatar=[];drawPerson(avatar,player.x,player.z,player.yaw,time*.009,punchTimer>0);for(let i=0;i<avatar.length;i+=9){avatar[i]=player.x+(avatar[i]-player.x)*1.18;avatar[i+1]=avatar[i+1]*1.18+player.y;avatar[i+2]=player.z+(avatar[i+2]-player.z)*1.18;}out.push(...avatar);
+  }
+
+  const npcData=[
+    {x:10,z:15,yaw:.4},{x:-28,z:20,yaw:2.2},
+    {x:44,z:35,yaw:1.1},{x:-48,z:-23,yaw:-1}
+  ];
+  npcData.forEach((n,i)=>drawPerson(out,n.x,n.z,n.yaw,time*.001+i*1.5,false));
+
+  const m=currentMission();
+  if(m){
+    const p=targetFor(m);
+    drawMarker(out,p.x,p.z,time);
+  }
+  if(shieldTimer>0){
+    addSphere(out,player.x,1.05,player.z,2.1,1.5,2.1,color(51,150,185),14,8);
+  }
+  return out;
+}
+
+function isBlocked(x,z){
+  if(Math.abs(x)>100||Math.abs(z)>100)return true;
+  const r=player.inCar?1.3:.48;
+  return obstacles.some(o=>x>o.minX-r&&x<o.maxX+r&&z>o.minZ-r&&z<o.maxZ+r);
+}
+
+function showToast(message){
+  const el=document.getElementById('toast');
+  el.textContent=message;el.style.display='block';
+  lastToast=performance.now();
+}
+function updateHud(){
+  const m=currentMission();
+  document.getElementById('cash').textContent='$'+cash.toLocaleString();
+  document.getElementById('xp').textContent=xp.toLocaleString();
+  document.getElementById('level').textContent=String(1+Math.floor(xp/1000));
+  if(m){
+    document.getElementById('missionCount').textContent='MISSION '+String(m.number).padStart(2,'0')+' / 100 · '+m.mode;
+    document.getElementById('missionTitle').textContent=m.name;
+    document.getElementById('missionBrief').textContent='Chapter '+Math.ceil(m.number/10)+': '+m.chapter+'. Reach the gold marker and use INTERACT.';
+  }else{
+    document.getElementById('missionCount').textContent='CAMPAIGN COMPLETE';
+    document.getElementById('missionTitle').textContent='DINDU LEGEND';
+    document.getElementById('missionBrief').textContent='You completed all 100 main missions. Free roam is still available.';
+  }
+}
+function saveGame(){
+  try{
+    localStorage.setItem('dindu_gtav_save_v1',JSON.stringify({
+      next:nextMission,cash,xp,done:completed,x:player.x,z:player.z,yaw:player.yaw
+    }));
+  }catch(e){}
+}
+function finishMission(){
+  const m=currentMission();
+  if(!m)return;
+  if(m.mode==='DRIVING'&&!player.inCar){
+    showToast('This mission requires a vehicle. Find a car and press INTERACT.');
+    return;
+  }
+  cash+=m.reward;xp+=m.xp;completed++;
+  nextMission++;
+  saveGame();updateHud();renderMissionList();
+  if(nextMission>100){
+    showToast('🏆 DINDU LEGEND! ALL 100 MISSIONS COMPLETED!');
+  }else{
+    showToast('MISSION COMPLETE · +$'+m.reward+' · +'+m.xp+' XP');
+  }
+}
+
+function interact(){
+  const m=currentMission();
+  if(m){
+    const p=targetFor(m);
+    const d=distance(player.x,player.z,p.x,p.z);
+    if(d<5){
+      finishMission();return;
+    }
+  }
+
+  if(player.inCar){
+    if(Math.abs(player.x)<100){
+      parkedCars[player.carIndex].x=player.x;
+      parkedCars[player.carIndex].z=player.z;
+      parkedCars[player.carIndex].yaw=player.yaw;
+      player.inCar=false;player.carIndex=-1;document.body.classList.remove("car-mode");document.getElementById("carControls").classList.remove("active");
+      showToast('You left the vehicle.');
+      return;
+    }
+  }else{
+    let closest=-1,best=4;
+    parkedCars.forEach((c,i)=>{
+      const d=distance(player.x,player.z,c.x,c.z);
+      if(d<best){best=d;closest=i;}
+    });
+    if(closest>=0){
+      player.inCar=true;player.carIndex=closest;document.body.classList.add("car-mode");document.getElementById("carControls").classList.add("active");
+      player.x=parkedCars[closest].x;player.z=parkedCars[closest].z;
+      player.yaw=parkedCars[closest].yaw;
+      showToast('Vehicle entered. Use the analog to drive.');
+      return;
+    }
+  }
+  showToast('Move closer to a person, vehicle or mission marker.');
+}
+
+function punch(){
+  if(player.inCar){showToast('Exit the vehicle first.');return;}
+  punchTimer=.42;
+  showToast('ARCADE PUNCH');
+}
+function jump(){
+  if(player.inCar){showToast('Exit the vehicle to jump.');return;}
+  if(player.y<=.02){player.vy=7.1;jumpPressed=true;}
+}
+function useSlot(){
+  const gadgets=['PULSE SHIELD','SPEED BURST','GPS PING'];
+  const i=gadgets.indexOf(selectedGadget);
+  selectedGadget=gadgets[(i+1)%gadgets.length];
+  if(selectedGadget==='PULSE SHIELD'){shieldTimer=2.5;showToast('PULSE SHIELD ACTIVATED');}
+  else if(selectedGadget==='SPEED BURST'){speedTimer=3.5;showToast('SPEED BURST ACTIVATED');}
+  else{
+    const m=currentMission();
+    if(m){const p=targetFor(m);showToast('GPS PING · '+Math.round(distance(player.x,player.z,p.x,p.z))+'m to waypoint');}
+    else showToast('GPS PING · Explore Dindu City.');
+  }
+  document.getElementById('slot').textContent='SLOT';
+}
+
+function renderMissionList(){
+  const list=document.getElementById('missionList');
+  let html='';
+  missionChapters.forEach((chapter,ci)=>{
+    html+='<div class="chapter">CHAPTER '+(ci+1)+' · '+chapter[0]+'</div>';
+    chapter[1].forEach((name,mi)=>{
+      const n=ci*10+mi+1;
+      const cls=n<=completed?'done':n===nextMission?'current':'locked';
+      const marker=n<=completed?'✓':n===nextMission?'▶':'🔒';
+      html+='<div class="missionRow '+cls+'"><span class="num">'+String(n).padStart(2,'0')+'</span><span>'+marker+' '+name+'</span></div>';
+    });
+  });
+  list.innerHTML=html;
+  document.getElementById('campaignProgress').textContent=completed+' / 100 missions completed';
+}
+function openOverlay(id){document.getElementById(id).classList.remove('hidden');}
+function closeOverlay(id){document.getElementById(id).classList.add('hidden');}
+function pauseGame(){
+  paused=true;running=false;
+  document.getElementById('welcome').classList.remove('hidden');
+  document.getElementById('startBtn').textContent='RESUME CITY';
+}
+function startGame(){
+  closeOverlay('welcome');running=true;paused=false;
+  updateHud();showToast('WELCOME TO DINDU CITY');
+}
+
+function drawMini(ctx,w,h,large){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='#19272b';ctx.fillRect(0,0,w,h);
+  const scale=large?2.1:.82,cx=w/2,cy=h/2;
+  ctx.strokeStyle='#65716e';ctx.lineWidth=large?10:5;
+  for(let k=-2;k<=2;k++){
+    const p=cx+k*36*scale;
+    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,h);ctx.stroke();
+    const q=cy+k*36*scale;
+    ctx.beginPath();ctx.moveTo(0,q);ctx.lineTo(w,q);ctx.stroke();
+  }
+  ctx.fillStyle='#a0a49b';
+  for(let x=-2;x<=1;x++)for(let z=-2;z<=1;z++){
+    ctx.fillRect(cx+(x*36+18)*scale-5,cy+(z*36+18)*scale-5,10,10);
+  }
+  const m=currentMission();
+  if(m){
+    const p=targetFor(m);
+    ctx.fillStyle='#efc36d';ctx.beginPath();
+    ctx.arc(cx+p.x*scale,cy+p.z*scale,large?7:4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.fillStyle='#fff';ctx.beginPath();
+  ctx.arc(cx+player.x*scale,cy+player.z*scale,large?7:4,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#d9e2e5';ctx.lineWidth=large?3:2;
+  ctx.beginPath();ctx.moveTo(cx+player.x*scale,cy+player.z*scale);
+  ctx.lineTo(cx+player.x*scale+Math.sin(player.yaw)*13,cy+player.z*scale+Math.cos(player.yaw)*13);ctx.stroke();
+}
+function updateMaps(){
+  const mini=document.getElementById('minimap');
+  drawMini(mini.getContext('2d'),mini.width,mini.height,false);
+  const big=document.getElementById('mapLarge');
+  if(!document.getElementById('mapOverlay').classList.contains('hidden'))
+    drawMini(big.getContext('2d'),big.width,big.height,true);
+}
+
+function resize(){
+  const dpr=Math.min(window.devicePixelRatio||1,1.5);
+  const w=Math.max(1,Math.floor(innerWidth*dpr));
+  const h=Math.max(1,Math.floor(innerHeight*dpr));
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+  gl.viewport(0,0,w,h);
+}
+window.addEventListener('resize',resize);
+resize();
+
+function render(time){
+  requestAnimationFrame(render);
+  const dt=Math.min(.04,(time-lastFrame)/1000||.016);
+  lastFrame=time;
+
+  if(running&&!paused){
+    if(player.inCar){if(dinduCarOsc&&dinduCarAudio)dinduCarOsc.frequency.setTargetAtTime(65+Math.abs(carSpeed)*12,dinduCarAudio.currentTime,.12);if(Math.abs(stickX)>.05&&Math.abs(carSpeed)>.1)player.yaw+=stickX*1.8*dt*(carSpeed<0?-1:1);if(carBrakeHeld)carSpeed*=Math.max(0,1-10*dt);else if(carAccelerateHeld)carSpeed=Math.min(15,carSpeed+8*dt);else if(carReverseHeld)carSpeed=Math.max(-6,carSpeed-7*dt);else carSpeed*=Math.max(0,1-1.2*dt);if(Math.abs(carSpeed)<.04)carSpeed=0;if(carSpeed!==0){const nx=player.x+Math.sin(player.yaw)*carSpeed*dt;const nz=player.z+Math.cos(player.yaw)*carSpeed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}else carSpeed=0}}else{const mag=Math.hypot(stickX,stickY);if(mag>.08){const camYaw=player.inCar?player.yaw:cameraYaw;const fx=Math.sin(camYaw),fz=Math.cos(camYaw);const rx=Math.cos(camYaw),rz=-Math.sin(camYaw);const forward=-stickY;const strafe=stickX;const mx=fx*forward+rx*strafe;const mz=fz*forward+rz*strafe;const len=Math.hypot(mx,mz)||1;const speed=(runHeld?6.9:3.7)*(speedTimer>0?1.55:1);const nx=player.x+(mx/len)*speed*dt;const nz=player.z+(mz/len)*speed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}player.yaw=Math.atan2(mx,mz)}}
+    if(!player.inCar){
+      player.vy-=17*dt;
+      player.y+=player.vy*dt;
+      if(player.y<0){player.y=0;player.vy=0;}
+    }
+    if(punchTimer>0)punchTimer=Math.max(0,punchTimer-dt);
+    if(shieldTimer>0)shieldTimer=Math.max(0,shieldTimer-dt);
+    if(speedTimer>0)speedTimer=Math.max(0,speedTimer-dt);
+
+    if(time-lastSave>8000){
+      saveGame();lastSave=time;
+    }
+  }
+
+  if(time-lastToast>2300)document.getElementById('toast').style.display='none';
+  resize();
+
+  const camYaw=player.inCar?player.yaw:cameraYaw;
+  const fx=Math.sin(camYaw),fz=Math.cos(camYaw);
+  const target=[player.x,1.2+player.y,player.z];
+  const eye=[player.x-fx*5.2,3.0+player.y,player.z-fz*5.2];
+  const view=lookAt(eye,target,[0,1,0]);
+  const proj=perspective(Math.PI/3,canvas.width/canvas.height,.1,240);
+  const vp=multiply(proj,view);
+
+  gl.enable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+  gl.clearColor(.38,.47,.49,1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(program);
+  gl.uniformMatrix4fv(loc.vp,false,vp);
+  drawBuffer(staticBuffer,staticCount);
+
+  const dyn=dynamicScene(time);
+  drawBuffer(dynamicBuffer,dyn.length/9,new Float32Array(dyn));
+
+  if(running&&!paused)updateMaps();
+}
+requestAnimationFrame(render);
+
+// Joystick touch input.
+const joy=document.getElementById('joystick');
+const stick=document.getElementById('stick');
+let joyPointer=null;
+function setStick(e){
+  const r=joy.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2;
+  let dx=e.clientX-cx,dy=e.clientY-cy;
+  const max=Math.max(1,Math.min(r.width,r.height)*.27),len=Math.hypot(dx,dy)||1;
+  if(len>max){dx=dx/len*max;dy=dy/len*max;}
+  stickX=dx/max;stickY=dy/max;
+  stick.style.transform='translate('+dx+'px,'+dy+'px)';
+}
+joy.addEventListener('pointerdown',e=>{
+  e.preventDefault();joyPointer=e.pointerId;joy.setPointerCapture(e.pointerId);setStick(e);
+});
+joy.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer)setStick(e);});
+function releaseJoy(e){
+  if(e.pointerId!==joyPointer)return;
+  joyPointer=null;stickX=0;stickY=0;stick.style.transform='translate(0,0)';
+}
+joy.addEventListener('pointerup',releaseJoy);
+joy.addEventListener('pointercancel',releaseJoy);
+
+// Drag the open city view to rotate the third-person camera.
+let cameraPointer=null,lastX=0;
+canvas.addEventListener('pointerdown',e=>{
+  if(e.clientX<innerWidth*.3)return;
+  cameraPointer=e.pointerId;lastX=e.clientX;canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove',e=>{
+  if(e.pointerId!==cameraPointer)return;
+  cameraYaw+=(e.clientX-lastX)*.006;
+  lastX=e.clientX;
+});
+function releaseCamera(e){if(e.pointerId===cameraPointer)cameraPointer=null;}
+canvas.addEventListener('pointerup',releaseCamera);
+canvas.addEventListener('pointercancel',releaseCamera);
+
+document.addEventListener("contextmenu",e=>e.preventDefault());document.addEventListener("selectstart",e=>e.preventDefault());
+document.getElementById("openHtmlBtn").addEventListener("click",()=>{document.getElementById("launcher").classList.add("hidden");document.getElementById("welcome").classList.remove("hidden")});
+// Touch buttons.
+let dinduCarAudio=null,dinduCarOsc=null,dinduCarGain=null;function startDinduCarSound(){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!dinduCarAudio){dinduCarAudio=new AC();dinduCarOsc=dinduCarAudio.createOscillator();dinduCarGain=dinduCarAudio.createGain();dinduCarOsc.type="sawtooth";dinduCarOsc.frequency.value=70;dinduCarGain.gain.value=0;dinduCarOsc.connect(dinduCarGain);dinduCarGain.connect(dinduCarAudio.destination);dinduCarOsc.start()}dinduCarAudio.resume();dinduCarGain.gain.setTargetAtTime(.025,dinduCarAudio.currentTime,.06)}catch(_){}}function stopDinduCarSound(){try{if(dinduCarAudio&&dinduCarGain)dinduCarGain.gain.setTargetAtTime(0,dinduCarAudio.currentTime,.08)}catch(_){}}function bindCarHold(id,setter){const b=document.getElementById(id);b.addEventListener("pointerdown",e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}setter(true);if(id==="carAccelerate")startDinduCarSound()});["pointerup","pointercancel","lostpointercapture"].forEach(t=>b.addEventListener(t,()=>{setter(false);if(id==="carAccelerate")stopDinduCarSound()}));}bindCarHold("carAccelerate",v=>carAccelerateHeld=v);bindCarHold("carBrake",v=>carBrakeHeld=v);bindCarHold("carReverse",v=>carReverseHeld=v);document.getElementById("carExit").addEventListener("pointerdown",e=>{e.preventDefault();carAccelerateHeld=carBrakeHeld=carReverseHeld=false;interact()});const runButton=document.getElementById('run');
+runButton.addEventListener('pointerdown',e=>{e.preventDefault();runHeld=true;});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>runButton.addEventListener(ev,()=>runHeld=false));
+document.getElementById('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
+document.getElementById('punch').addEventListener('pointerdown',e=>{e.preventDefault();punch();});
+document.getElementById('interact').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
+document.getElementById('slot').addEventListener('pointerdown',e=>{e.preventDefault();openOverlay('gadgetOverlay');});
+
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('pauseBtn').addEventListener('click',pauseGame);
+document.getElementById('missionsBtn').addEventListener('click',()=>{
+  renderMissionList();openOverlay('missionsOverlay');
+});
+document.getElementById('closeMissions').addEventListener('click',()=>closeOverlay('missionsOverlay'));
+document.getElementById('mapBtn').addEventListener('click',()=>{
+  updateMaps();openOverlay('mapOverlay');
+});
+document.getElementById('closeMap').addEventListener('click',()=>closeOverlay('mapOverlay'));
+document.getElementById('closeGadget').addEventListener('click',()=>closeOverlay('gadgetOverlay'));
+document.querySelectorAll('[data-gadget]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    selectedGadget=btn.dataset.gadget;
+    closeOverlay('gadgetOverlay');
+    if(selectedGadget==='PULSE SHIELD'){shieldTimer=2.5;showToast('PULSE SHIELD ACTIVATED');}
+    else if(selectedGadget==='SPEED BURST'){speedTimer=3.5;showToast('SPEED BURST ACTIVATED');}
+    else{
+      const m=currentMission();
+      if(m){const p=targetFor(m);showToast('GPS PING · '+Math.round(distance(player.x,player.z,p.x,p.z))+'m to waypoint');}
+    }
+  });
+});
+
+// Optional keyboard controls for testing on a computer.
+const keys={};
+window.addEventListener('keydown',e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(e.key===' '){e.preventDefault();jump();}
+  if(e.key.toLowerCase()==='e')interact();
+  if(e.key.toLowerCase()==='f')punch();
+  if(e.key.toLowerCase()==='q')openOverlay('gadgetOverlay');
+});
+window.addEventListener('keyup',e=>{delete keys[e.key.toLowerCase()];});
+function keyboardInput(){
+  if(keys.w||keys.arrowup)stickY=-1;
+  else if(keys.s||keys.arrowdown)stickY=1;
+  else if(!joyPointer)stickY=0;
+  if(keys.a||keys.arrowleft)stickX=-1;
+  else if(keys.d||keys.arrowright)stickX=1;
+  else if(!joyPointer)stickX=0;
+  if(keys.shift)runHeld=true;
+  else if(!joyPointer)runHeld=false;
+}
+setInterval(keyboardInput,35);
+
+updateHud();
+renderMissionList();
+showToast('Tap ENTER DINDU CITY to begin.');
+})();
+</script>
+</body>
+</html>
