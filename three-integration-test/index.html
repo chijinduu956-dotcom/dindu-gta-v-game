@@ -1825,6 +1825,7 @@ function render(time){
   const view=lookAt(eye,target,[0,1,0]);
   const proj=perspective(Math.PI/3,canvas.width/canvas.height,.1,280);
   const vp=multiply(proj,view);
+  window.__DINDU3D_CAMERA_MATRICES__={view,projection:proj};
 
   gl.enable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
@@ -2182,15 +2183,26 @@ showToast('Tap ENTER DINDU CITY to begin.');
     const clock=new THREE.Clock();
     const dist2=(x1,z1,x2,z2)=>{const dx=x1-x2,dz=z1-z2;return dx*dx+dz*dz;};
     function syncCamera(){
-      const p=link.player;
-      const c=link.cameraState;
-      const targetY=1.2+p.y;
-      const horizontal=Math.cos(c.pitch)*c.distance;
-      const vertical=Math.sin(c.pitch)*c.distance;
-      const eyeX=p.x-Math.sin(c.yaw)*horizontal;
-      const eyeZ=p.z-Math.cos(c.yaw)*horizontal;
-      camera.position.set(eyeX,targetY+vertical,eyeZ);
-      camera.lookAt(p.x,targetY,p.z);
+      const shared=window.__DINDU3D_CAMERA_MATRICES__;
+      if(shared){
+        const view=new THREE.Matrix4().fromArray(shared.view);
+        const world=view.clone().invert();
+        camera.matrixAutoUpdate=false;
+        camera.matrixWorldAutoUpdate=false;
+        camera.matrix.copy(world);
+        camera.matrixWorld.copy(world);
+        camera.matrixWorldInverse.copy(view);
+        camera.projectionMatrix.fromArray(shared.projection);
+        camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+        return;
+      }
+      camera.matrixAutoUpdate=true;
+      camera.matrixWorldAutoUpdate=true;
+      const p=link.player,c=link.cameraState;
+      const y=1.2+p.y,h=Math.cos(c.pitch)*c.distance;
+      const v=Math.sin(c.pitch)*c.distance;
+      camera.position.set(p.x-Math.sin(c.yaw)*h,y+v,p.z-Math.cos(c.yaw)*h);
+      camera.lookAt(p.x,y,p.z);
       camera.updateMatrixWorld();
     }
     function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t){
