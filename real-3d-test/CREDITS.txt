@@ -1,0 +1,17 @@
+DINDU GTA V — REAL 3D TEST CELL
+
+Human asset: Grab3D, "Man Base Mesh" (rigged version)
+Model page: https://grab3d.com/models/characters/man-base-character/
+License: CC0 1.0 Universal (public-domain dedication)
+Notes: high-detail adult male model, original plain T-shirt, charcoal shorts and bare feet; rigged version includes Walk and Run animations.
+
+Vehicle asset: Grab3D, "1990s Sedan"
+Model page: https://grab3d.com/models/vehicles/1990s-sedan/
+License: CC0 1.0 Universal (public-domain dedication)
+Notes: blue 1990s sedan model, game-ready GLB with 2K textures.
+
+Rendering engine: three.js 0.185.0
+Project: MIT License (three.js)
+CDN: https://cdn.jsdelivr.net/npm/three@0.185.0/
+
+This is a separate prototype test cell. It does not replace the main DINDU GTA V game.

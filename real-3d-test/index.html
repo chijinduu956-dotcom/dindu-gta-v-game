@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#111923">
+<title>DINDU GTA V — Real 3D Test</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101922;color:#fff;touch-action:none}
+#stage{position:fixed;inset:0}canvas{display:block;width:100%;height:100%;touch-action:none}
+#top{position:fixed;left:12px;right:12px;top:max(10px,env(safe-area-inset-top));display:flex;align-items:flex-start;justify-content:space-between;gap:10px;pointer-events:none}
+#brand,#status{background:#0c1521d9;border:1px solid #ffffff29;box-shadow:0 8px 24px #0005;backdrop-filter:blur(9px);border-radius:14px;padding:10px 13px}
+#brand b{display:block;letter-spacing:1px;font-size:13px}#brand small{display:block;color:#aebdc9;font-size:10px;margin-top:3px}
+#status{max-width:54vw;font-size:11px;color:#d8e3eb;text-align:right;line-height:1.4}
+#status strong{color:#79e1a7}
+#loading{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(82vw,360px);padding:18px;border-radius:16px;background:#0c1521ed;border:1px solid #ffffff35;text-align:center;box-shadow:0 12px 44px #0009;z-index:5}
+#loading h1{font-size:17px;margin:0 0 8px}#loading p{font-size:12px;color:#c3d1da;line-height:1.5;margin:0 0 12px}#bar{height:7px;border-radius:9px;background:#283746;overflow:hidden}#bar i{display:block;width:0;height:100%;background:linear-gradient(90deg,#36b87e,#d2ba67);transition:width .2s}
+#error{color:#ffb2a8!important;white-space:pre-wrap;word-break:break-word}
+#help{position:fixed;left:50%;top:84px;transform:translateX(-50%);background:#0b1520b8;padding:8px 12px;border-radius:12px;color:#dce6ec;font-size:11px;text-align:center;white-space:nowrap;pointer-events:none}
+#joystick{position:fixed;left:18px;bottom:max(20px,env(safe-area-inset-bottom));width:120px;height:120px;border:2px solid #e4edf377;border-radius:50%;background:#17263588;box-shadow:inset 0 0 22px #0009,0 8px 24px #0005;touch-action:none}
+#stick{position:absolute;left:33px;top:33px;width:50px;height:50px;border:2px solid #f2f5f5;border-radius:50%;background:linear-gradient(145deg,#e1e7eb,#607380);box-shadow:0 5px 14px #0009}
+#actions{position:fixed;right:16px;bottom:max(24px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:9px}
+#actions button{min-width:86px;padding:12px 13px;border:1px solid #ffffff8a;border-radius:14px;background:linear-gradient(145deg,#304456ed,#101c28f2);color:#fff;font-weight:800;font-size:11px;letter-spacing:.5px;box-shadow:0 5px 16px #0008;touch-action:manipulation}
+#actions button.active{border-color:#f5ce72;color:#ffe6a1}
+#footer{position:fixed;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:8px 11px;background:#0c1521c9;border:1px solid #ffffff22;border-radius:10px;color:#b8c8d3;font-size:10px;white-space:nowrap;pointer-events:none}
+@media(max-width:420px){#joystick{width:108px;height:108px}#stick{left:29px;top:29px}#help{top:78px;font-size:10px}#actions{right:10px}#actions button{min-width:78px;padding:11px 10px}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="top"><div id="brand"><b>🔱 DINDU GTA V</b><small>REAL 3D MODEL TEST CELL</small></div><div id="status">Loading actual 3D assets…</div></div>
+<div id="help">Drag the scene to orbit · Use the left pad to move</div>
+<div id="loading"><h1>Loading real 3D models</h1><p id="loadText">Preparing the test scene…</p><div id="bar"><i id="barFill"></i></div></div>
+<div id="joystick"><div id="stick"></div></div>
+<div id="actions"><button id="walkBtn" class="active">WALK</button><button id="runBtn">RUN</button><button id="resetBtn">RESET VIEW</button></div>
+<div id="footer">Separate prototype · Your main DINDU GTA V game is unchanged</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const mount=document.getElementById('stage');
+const status=document.getElementById('status');
+const loadBox=document.getElementById('loading');
+const loadText=document.getElementById('loadText');
+const barFill=document.getElementById('barFill');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9dbbd0);
+scene.fog=new THREE.Fog(0x9dbbd0,42,150);
+const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,260);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.12;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+mount.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe3f2ff,0x5b604d,2.05));
+const sun=new THREE.DirectionalLight(0xffe2b8,3.0);
+sun.position.set(-24,38,18);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;
+sun.shadow.bias=-.00018;scene.add(sun);
+const fill=new THREE.DirectionalLight(0x9abfff,.65);fill.position.set(28,15,-30);scene.add(fill);
+
+const mats={
+  ground:new THREE.MeshStandardMaterial({color:0xb5b4a8,roughness:.95}),
+  asphalt:new THREE.MeshStandardMaterial({color:0x303941,roughness:.93}),
+  white:new THREE.MeshStandardMaterial({color:0xe5e3d6,roughness:.8}),
+  glass:new THREE.MeshPhysicalMaterial({color:0x263d4b,roughness:.18,metalness:.18,transparent:true,opacity:.72}),
+  concrete:new THREE.MeshStandardMaterial({color:0x87939a,roughness:.9}),
+  green:new THREE.MeshStandardMaterial({color:0x356b4b,roughness:1})
+};
+function box(w,h,d,mat,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,220),mats.ground);ground.rotation.x=-Math.PI/2;ground.position.y=-.025;ground.receiveShadow=true;scene.add(ground);
+const road=new THREE.Mesh(new THREE.PlaneGeometry(15,150),mats.asphalt);road.rotation.x=-Math.PI/2;road.position.set(5,.008,0);road.receiveShadow=true;scene.add(road);
+for(let z=-68;z<=68;z+=9){const line=new THREE.Mesh(new THREE.PlaneGeometry(.17,4.3),mats.white);line.rotation.x=-Math.PI/2;line.position.set(5,.02,z);scene.add(line);}
+// Sidewalk tile guides and a small urban backdrop make the two imported assets easy to inspect.
+for(let x=-12;x<=19;x+=2){const line=new THREE.Mesh(new THREE.PlaneGeometry(.025,145),new THREE.MeshStandardMaterial({color:0x888e8a,roughness:1}));line.rotation.x=-Math.PI/2;line.position.set(x,.004,0);scene.add(line);}
+const buildingMats=[0x8595a0,0xa39b8e,0x6f818d,0xb0a99b].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.85}));
+for(let i=0;i<9;i++){
+ const side=i%2===0?-1:1,z=-42+i*10,h=12+(i%4)*5,w=7+(i%3)*2;
+ const b=box(w,h,8,buildingMats[i%buildingMats.length],side*17,h/2,z);
+ for(let f=0;f<Math.floor(h/3.3);f++)for(let col=0;col<2;col++){
+  const win=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.75),new THREE.MeshStandardMaterial({color:0x466273,metalness:.15,roughness:.22,emissive:0x172431,emissiveIntensity:.18}));
+  win.position.set(side*17+(col===0?-w*.23:w*.23),2.4+f*3.3,z+4.02);scene.add(win);
+ }
+}
+// Original palm-like street trees, kept light for phones.
+for(const z of [-27,-5,18,42])for(const side of [-1,1]){
+ const x=side*10;
+ const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,4.2,9),new THREE.MeshStandardMaterial({color:0x76553c,roughness:1}));trunk.position.set(x,2.1,z);trunk.castShadow=true;scene.add(trunk);
+ for(let k=0;k<6;k++){const leaf=new THREE.Mesh(new THREE.ConeGeometry(.34,3.2,7),mats.green);leaf.position.set(x+Math.cos(k*Math.PI/3)*.9,4.4,z+Math.sin(k*Math.PI/3)*.9);leaf.rotation.z=-Math.cos(k*Math.PI/3)*.72;leaf.rotation.x=Math.sin(k*Math.PI/3)*.65;leaf.castShadow=true;scene.add(leaf);}
+}
+
+const loader=new GLTFLoader();
+let playerRoot=null,playerMixer=null,playerActions={},activeAction=null,carRoot=null;
+const playerPosition=new THREE.Vector3(0,0,8);
+let walkMode=false,runMode=false;
+const clock=new THREE.Clock();
+function setProgress(text,p){loadText.textContent=text;barFill.style.width=Math.round(p*100)+'%';}
+function fitModel(root,targetHeight,targetLength=null){
+ const b=new THREE.Box3().setFromObject(root),s=b.getSize(new THREE.Vector3());
+ if(targetHeight){const sc=targetHeight/Math.max(.001,s.y);root.scale.multiplyScalar(sc);}
+ else if(targetLength){const long=Math.max(s.x,s.z);const sc=targetLength/Math.max(.001,long);root.scale.multiplyScalar(sc);}
+ root.updateMatrixWorld(true);
+ const fitted=new THREE.Box3().setFromObject(root),center=fitted.getCenter(new THREE.Vector3());
+ root.position.x-=center.x;root.position.z-=center.z;root.position.y-=fitted.min.y;
+}
+function chooseAction(mixer,clips,regexes){for(const re of regexes){const clip=clips.find(c=>re.test(c.name));if(clip)return mixer.clipAction(clip);}return null;}
+function switchAction(next){if(!next||next===activeAction)return;if(activeAction)activeAction.fadeOut(.18);next.reset().fadeIn(.18).play();activeAction=next;}
+async function loadPlayer(){
+ setProgress('Loading rigged human model…',.1);
+ const gltf=await loader.loadAsync('./assets/player.glb');
+ playerRoot=new THREE.Group();
+ const model=gltf.scene;
+ fitModel(model,1.78);
+ model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material.side=THREE.FrontSide;if('roughness' in o.material && o.material.roughness===undefined)o.material.roughness=.72;}}});
+ playerRoot.add(model);playerRoot.position.copy(playerPosition);scene.add(playerRoot);
+ playerMixer=new THREE.AnimationMixer(model);
+ const clips=gltf.animations||[];
+ playerActions.idle=chooseAction(playerMixer,clips,[/idle/i,/stand/i])|| (clips[0]?playerMixer.clipAction(clips[0]):null);
+ playerActions.walk=chooseAction(playerMixer,clips,[/walk/i]);
+ playerActions.run=chooseAction(playerMixer,clips,[/run/i]);
+ switchAction(playerActions.idle||playerActions.walk||playerActions.run);
+ return {clips:clips.map(c=>c.name),triangles:(()=>{let n=0;model.traverse(o=>{if(o.isMesh&&o.geometry&&o.geometry.index)n+=o.geometry.index.count/3;else if(o.isMesh&&o.geometry)n+=(o.geometry.attributes.position?.count||0)/3;});return Math.round(n);})()};
+}
+async function loadCar(){
+ setProgress('Loading detailed blue sedan…',.56);
+ const gltf=await loader.loadAsync('./assets/blue-sedan.glb');
+ carRoot=gltf.scene;fitModel(carRoot,null,4.7);
+ carRoot.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material.side=THREE.FrontSide;}}});
+ carRoot.position.set(5.2,0,8);carRoot.rotation.y=Math.PI;scene.add(carRoot);
+ let tri=0;carRoot.traverse(o=>{if(o.isMesh&&o.geometry){tri+=o.geometry.index?o.geometry.index.count/3:(o.geometry.attributes.position?.count||0)/3;}});
+ return Math.round(tri);
+}
+
+let yaw=.50,pitch=.20,distance=7.1,desiredYaw=yaw,desiredPitch=pitch,desiredDistance=distance;
+const target=new THREE.Vector3();
+function updateCamera(dt){
+ yaw+=(desiredYaw-yaw)*(1-Math.exp(-12*dt));
+ pitch+=(desiredPitch-pitch)*(1-Math.exp(-12*dt));
+ distance+=(desiredDistance-distance)*(1-Math.exp(-10*dt));
+ target.set(playerPosition.x,1.12+playerPosition.y,playerPosition.z);
+ const horizontal=Math.cos(pitch)*distance;
+ const wanted=new THREE.Vector3(playerPosition.x-Math.sin(yaw)*horizontal,target.y+Math.sin(pitch)*distance,playerPosition.z-Math.cos(yaw)*horizontal);
+ camera.position.lerp(wanted,1-Math.exp(-14*dt));camera.lookAt(target);
+}
+
+const keys=new Set();window.addEventListener('keydown',e=>{keys.add(e.key.toLowerCase());});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+let joyPointer=null,joyX=0,joyY=0;
+const joy=document.getElementById('joystick'),stick=document.getElementById('stick');
+function setJoy(e){const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max=r.width*.30,len=Math.hypot(dx,dy)||1;if(len>max){dx=dx/len*max;dy=dy/len*max;}joyX=dx/max;joyY=dy/max;stick.style.transform=`translate(${dx}px,${dy}px)`;}
+joy.addEventListener('pointerdown',e=>{e.preventDefault();joyPointer=e.pointerId;joy.setPointerCapture(e.pointerId);setJoy(e);});
+joy.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer)setJoy(e);});
+function releaseJoy(e){if(e.pointerId!==joyPointer)return;joyPointer=null;joyX=joyY=0;stick.style.transform='translate(0,0)';}
+joy.addEventListener('pointerup',releaseJoy);joy.addEventListener('pointercancel',releaseJoy);
+let camPointer=null,lastX=0,lastY=0;
+renderer.domElement.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;camPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);});
+renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerId!==camPointer)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;desiredYaw-=dx*.006;desiredPitch=THREE.MathUtils.clamp(desiredPitch+dy*.004,-.15,1.08);});
+function releaseCam(e){if(e.pointerId===camPointer)camPointer=null;}
+renderer.domElement.addEventListener('pointerup',releaseCam);renderer.domElement.addEventListener('pointercancel',releaseCam);
+
+const walkBtn=document.getElementById('walkBtn'),runBtn=document.getElementById('runBtn');
+walkBtn.addEventListener('click',()=>{runMode=false;walkBtn.classList.add('active');runBtn.classList.remove('active');});
+runBtn.addEventListener('click',()=>{runMode=true;runBtn.classList.add('active');walkBtn.classList.remove('active');});
+document.getElementById('resetBtn').addEventListener('click',()=>{desiredYaw=.50;desiredPitch=.20;desiredDistance=7.1;});
+function updateMovement(dt){
+ let sx=joyX,sy=joyY;
+ if(keys.has('a')||keys.has('arrowleft'))sx-=1;
+ if(keys.has('d')||keys.has('arrowright'))sx+=1;
+ if(keys.has('w')||keys.has('arrowup'))sy-=1;
+ if(keys.has('s')||keys.has('arrowdown'))sy+=1;
+ const len=Math.hypot(sx,sy);if(len>1){sx/=len;sy/=len;}
+ const moving=Math.hypot(sx,sy)>.09;
+ if(moving){const fx=Math.sin(yaw),fz=Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);const mx=fx*(-sy)+rx*sx,mz=fz*(-sy)+rz*sx;const heading=Math.atan2(mx,mz);playerRoot.rotation.y=heading;const speed=runMode?3.2:1.85;playerPosition.x+=mx*speed*dt;playerPosition.z+=mz*speed*dt;playerRoot.position.set(playerPosition.x,0,playerPosition.z);}
+ switchAction(moving?(runMode?playerActions.run:playerActions.walk):(playerActions.idle||playerActions.walk));
+}
+
+function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.045);if(playerMixer)playerMixer.update(dt);if(playerRoot)updateMovement(dt);if(playerRoot)updateCamera(dt);renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));});
+
+(async()=>{
+ try{
+  const p=await loadPlayer();
+  setProgress('Human model loaded · loading sedan…',.55);
+  const carTriangles=await loadCar();
+  setProgress('3D assets ready',1);
+  status.innerHTML=`<strong>REAL MODELS LOADED</strong><br>Human: ${p.triangles.toLocaleString()} triangles · ${p.clips.length} animation clips<br>Sedan: ${carTriangles.toLocaleString()} triangles`;
+  loadBox.style.display='none';
+  updateCamera(1/60);animate();
+ }catch(err){
+  console.error(err);loadText.textContent='Could not load an asset.';document.getElementById('bar').style.display='none';
+  const p=document.createElement('p');p.id='error';p.textContent=String(err?.message||err)+'\nCheck that both GLB files exist in assets/ and reload.';loadBox.appendChild(p);status.textContent='ASSET LOAD FAILED';
+  animate();
+ }
+})();
+</script>
+</body>
+</html>
