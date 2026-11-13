@@ -269,6 +269,7 @@ let lastFrame=0;
 
 const obstacles=[];
 const staticData=[];
+const stage2BuildingRecords=[];
 const parkedCars=[
   {x:3,z:0,yaw:Math.PI/2,color:[0.035,0.24,0.78],name:'Blue Lexus IS350'},
   {x:20,z:22,yaw:0,color:[0.10,0.26,0.42]},
@@ -332,6 +333,7 @@ function addBuilding(x,z,w,d,h,shade,id){
   addBox(staticData,x,h/2,z,w,h,d,wall);
   addBox(staticData,x,h+.2,z,w+.5,.4,d+.5,color(48,57,61));
   obstacles.push({minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2});
+  stage2BuildingRecords.push({x,z,w,d,h,id});
 
   const floors=Math.floor((h-4)/3.1);
   const front=z-d/2-.07;
@@ -421,6 +423,81 @@ function buildCity(){
 }
 buildCity();
 
+/* DINDU_STAGE2_GRAPHICS: extra architecture, street furniture and road detail. */
+function buildStage2CityDetails(){
+  const facadeTrim=color(72,78,77),darkTrim=color(38,47,50);
+  const concrete=color(151,146,132),warmLamp=color(246,207,126);
+  const steel=color(47,57,60),glass=color(66,105,116);
+
+  for(const b of stage2BuildingRecords){
+    const front=b.z-b.d/2-.17;
+    const floors=Math.max(0,Math.floor((b.h-4)/3.1));
+    // Corner pilasters and a defined roof parapet give each block a stronger silhouette.
+    addBox(staticData,b.x-b.w*.47,b.h/2,front,.16,b.h,.18,facadeTrim);
+    addBox(staticData,b.x+b.w*.47,b.h/2,front,.16,b.h,.18,facadeTrim);
+    addBox(staticData,b.x,b.h+.39,b.z-b.d/2,b.w+.28,.20,.24,darkTrim);
+    addBox(staticData,b.x-b.w/2,b.h+.30,b.z,.20,.18,b.d+.22,facadeTrim);
+    // Horizontal floor bands, kept between window rows.
+    for(let row=0;row<floors;row++){
+      const bandY=4.55+row*3.1;
+      if(bandY<b.h-.2) addBox(staticData,b.x,bandY,front,b.w-.18,.075,.12,facadeTrim);
+    }
+    // A recessed-looking ground-floor entrance and a small canopy.
+    addBox(staticData,b.x,.99,front,1.02,1.98,.12,darkTrim);
+    addBox(staticData,b.x-.04,.99,front-.075,.72,1.76,.045,glass);
+    addBox(staticData,b.x+.31,.99,front-.11,.035,1.72,.035,steel);
+    addSphere(staticData,b.x+.22,1.02,front-.145,.035,.035,.035,warmLamp,7,5);
+    addBox(staticData,b.x,2.04,front-.20,1.42,.12,.52,concrete);
+    // Small rooftop equipment adds variety without adding collision obstacles.
+    addBox(staticData,b.x-b.w*.23,b.h+.63,b.z,.72,.58,.66,steel);
+    addBox(staticData,b.x+b.w*.23,b.h+.52,b.z+.18,.54,.38,.48,concrete);
+  }
+
+  // Finish the existing streetlamp poles with short arms and warm lamp housings.
+  for(let k=-2;k<=2;k++){
+    const p=k*36;
+    for(let t=-88;t<=88;t+=29){
+      addBox(staticData,p+7.08,4.12,t,.98,.12,.13,steel);
+      addBox(staticData,p+6.60,4.02,t,.34,.18,.42,warmLamp);
+      addBox(staticData,t,4.12,p+7.08,.13,.12,.98,steel);
+      addBox(staticData,t,4.02,p+6.60,.42,.18,.34,warmLamp);
+    }
+  }
+
+  // Zebra crossings at the main grid intersections.
+  const stripe=color(218,216,198);
+  for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++){
+    const x=ix*36,z=iz*36;
+    for(const side of [-1,1]){
+      for(let s=-4;s<=4;s+=1.6){
+        addBox(staticData,x+s,.092,z+side*7.2,.78,.018,.34,stripe);
+        addBox(staticData,x+side*7.2,.092,z+s,.34,.018,.78,stripe);
+      }
+    }
+  }
+
+  // A few extra landscaped corners and planters make the city less empty.
+  const treeSpots=[[-84,-30],[-84,30],[84,-30],[84,30],[-30,-84],[30,-84],[-30,84],[30,84]];
+  treeSpots.forEach((p,i)=>{
+    addBox(staticData,p[0],1.55,p[1],.34,3.1,.34,color(91,65,43));
+    const crown=i%2?color(57,91,65):color(65,99,68);
+    addSphere(staticData,p[0],3.65,p[1],1.65,1.75,1.65,crown,11,8);
+    addSphere(staticData,p[0]-.85,3.35,p[1]+.35,1.0,1.05,1.0,crown,9,7);
+    addSphere(staticData,p[0]+.82,3.42,p[1]-.25,1.05,1.12,1.0,crown,9,7);
+    addBox(staticData,p[0],.32,p[1],2.5,.24,2.5,color(105,103,88));
+  });
+
+  // A small number of benches and street bins along the outer sidewalks.
+  const streetSeats=[[-80,12],[80,-12],[12,80],[-12,-80]];
+  streetSeats.forEach((p)=>{
+    addBox(staticData,p[0],.48,p[1],1.55,.14,.48,color(107,76,49));
+    addBox(staticData,p[0],.78,p[1]-.19,1.55,.48,.12,color(107,76,49));
+    addBox(staticData,p[0]+1.25,.48,p[1]-.58,.38,.82,.38,steel);
+  });
+}
+buildStage2CityDetails();
+
+
 const vertexShader=`
 attribute vec3 aPosition;
 attribute vec3 aColor;
@@ -431,17 +508,17 @@ varying float vFog;
 void main(){
   vec4 clip=uVP*vec4(aPosition,1.0);
   gl_Position=clip;
-  vec3 light=normalize(vec3(-0.45,0.82,0.35));
+  vec3 light=normalize(vec3(-0.36,0.88,0.30));
   float diffuse=max(dot(normalize(aNormal),light),0.0);
-  vColor=aColor*(0.48+diffuse*0.68);
-  vFog=clamp((clip.w-45.0)/125.0,0.0,0.82);
+  vColor=aColor*(0.56+diffuse*0.72);
+  vFog=clamp((clip.w-72.0)/168.0,0.0,0.70);
 }`;
 const fragmentShader=`
 precision mediump float;
 varying vec3 vColor;
 varying float vFog;
 void main(){
-  vec3 fog=vec3(0.49,0.55,0.55);
+  vec3 fog=vec3(0.58,0.65,0.68);
   gl_FragColor=vec4(mix(vColor,fog,vFog),1.0);
 }`;
 function compile(type,source){
@@ -531,6 +608,8 @@ function drawCar(out,x,z,yaw,body,spin=0){
   addBox(out,x,.87,z-1.48,1.94,.18,1.0,body,yaw);
   addBox(out,x,1.13,z-.2,1.72,.82,2.05,glass,yaw);
   addBox(out,x,1.56,z-.2,1.48,.13,1.8,body,yaw);
+  addBox(out,x,1.635,z-.18,.54,.025,.82,trim,yaw);
+  addBox(out,x,.365,z,1.82,.09,3.55,trim,yaw);
   const windshield=localPoint(x,z,yaw,0,.82);
   addBox(out,windshield[0],1.18,windshield[1],1.43,.43,.09,glass,yaw);
   const rearGlass=localPoint(x,z,yaw,0,-1.25);
@@ -538,6 +617,10 @@ function drawCar(out,x,z,yaw,body,spin=0){
   for(const side of [-1,1]){
     const sideWindow=localPoint(x,z,yaw,side*.875,-.18);
     addBox(out,sideWindow[0],1.16,sideWindow[1],.085,.43,1.3,glass,yaw);
+    const sideSkirt=localPoint(x,z,yaw,side*1.045,0);
+    addBox(out,sideSkirt[0],.48,sideSkirt[1],.13,.13,2.65,trim,yaw);
+    const handle=localPoint(x,z,yaw,side*1.075,.22);
+    addBox(out,handle[0],.91,handle[1],.075,.055,.28,metal,yaw);
     const mirror=localPoint(x,z,yaw,side*1.04,.58);
     addBox(out,mirror[0],1.13,mirror[1],.19,.13,.2,body,yaw);
     const lampPoint=localPoint(x,z,yaw,side*.67,2.075);
@@ -594,6 +677,7 @@ function drawPerson(out,x,z,yaw,walk=0,punch=false){
     const armSwing=(side===-1?-stride:stride);
     const armForward=punch&&side===1?.48:0;
     const upperArm=point(side*.43,armForward+armSwing*.55);
+    addSphere(out,upperArm[0],1.40,upperArm[1],.145,.17,.145,shirt,9,7);
     addBox(out,upperArm[0],1.31,upperArm[1],.22,.43,.23,shirt,yaw);
     const forearm=point(side*.47,armForward+armSwing);
     addBox(out,forearm[0],1.02,forearm[1],.19,.36,.2,shirt,yaw);
@@ -861,12 +945,12 @@ function render(time){
   const verticalDistance=Math.sin(cameraPitch)*cameraDistance;
   const eye=[player.x-fx*horizontalDistance,target[1]+verticalDistance,player.z-fz*horizontalDistance];
   const view=lookAt(eye,target,[0,1,0]);
-  const proj=perspective(Math.PI/3,canvas.width/canvas.height,.1,240);
+  const proj=perspective(Math.PI/3,canvas.width/canvas.height,.1,280);
   const vp=multiply(proj,view);
 
   gl.enable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
-  gl.clearColor(.48,.55,.58,1);
+  gl.clearColor(.58,.66,.72,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.useProgram(program);
   gl.uniformMatrix4fv(loc.vp,false,vp);
