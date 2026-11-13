@@ -498,6 +498,101 @@ function buildStage2CityDetails(){
 buildStage2CityDetails();
 
 
+/* DINDU_STAGE2_GRAPHICS_FIX_1: high-visibility road, facade and street-detail pass. */
+function buildStage2VisibilityFix(){
+  const roadYellow=color(242,196,83);
+  const roadWhite=color(226,226,211);
+  const curb=color(184,181,164);
+  const darkMetal=color(38,48,52);
+  const signalHousing=color(35,42,44);
+  const red=color(232,72,58),amber=color(247,181,57),green=color(69,190,111);
+
+  // Much clearer lane guides: the earlier markings were very thin at phone scale.
+  for(let k=-2;k<=2;k++){
+    const p=k*36;
+    for(let t=-98;t<=98;t+=11){
+      addBox(staticData,p-.52,.115,t,.22,.035,4.7,roadYellow);
+      addBox(staticData,p+.52,.115,t,.22,.035,4.7,roadYellow);
+      addBox(staticData,t,.115,p-.52,4.7,.035,.22,roadYellow);
+      addBox(staticData,t,.115,p+.52,4.7,.035,.22,roadYellow);
+    }
+    // Brighter road-edge guides sit just inside the asphalt, not on the footpath.
+    addBox(staticData,p-5.05,.105,0,.12,.025,205,roadWhite);
+    addBox(staticData,p+5.05,.105,0,.12,.025,205,roadWhite);
+    addBox(staticData,0,.105,p-5.05,205,.025,.12,roadWhite);
+    addBox(staticData,0,.105,p+5.05,205,.025,.12,roadWhite);
+  }
+
+  // Corrected zebra crossings: keep their stripes inside the road surface.
+  for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++){
+    const x=ix*36,z=iz*36;
+    for(const side of [-1,1]){
+      for(let s=-4.25;s<=4.26;s+=1.12){
+        addBox(staticData,x+s,.155,z+side*4.48,.76,.035,.90,roadWhite);
+        addBox(staticData,x+side*4.48,.155,z+s,.90,.035,.76,roadWhite);
+      }
+    }
+  }
+
+  // Raised curb corners make the junctions and sidewalks read more clearly.
+  for(let k=-2;k<=2;k++){
+    const p=k*36;
+    for(const side of [-1,1]){
+      addBox(staticData,p+side*5.78,.16,0,.26,.23,205,curb);
+      addBox(staticData,0,.16,p+side*5.78,205,.23,.26,curb);
+    }
+  }
+
+  // Traffic signals on the main central junctions provide clear city landmarks.
+  for(let ix=-1;ix<=1;ix++) for(let iz=-1;iz<=1;iz++){
+    const cx=ix*36,cz=iz*36;
+    for(const sx of [-1,1]) for(const sz of [-1,1]){
+      const x=cx+sx*6.25,z=cz+sz*6.25;
+      addBox(staticData,x,1.85,z,.16,3.7,.16,darkMetal);
+      addBox(staticData,x,3.48,z,.48,1.05,.38,signalHousing);
+      addSphere(staticData,x,3.78,z+.205,.135,.135,.075,red,10,7);
+      addSphere(staticData,x,3.48,z+.205,.135,.135,.075,amber,10,7);
+      addSphere(staticData,x,3.18,z+.205,.135,.135,.075,green,10,7);
+      addBox(staticData,x,4.12,z,.78,.09,.52,darkMetal);
+    }
+  }
+
+  // A few large shop awnings and signboards make ground level easier to read.
+  const awnings=[
+    [-23,-23,color(177,76,59)],[-23,13,color(70,119,151)],
+    [13,-23,color(190,145,65)],[49,13,color(70,126,91)],
+    [-59,49,color(163,92,127)],[49,-59,color(177,111,58)]
+  ];
+  awnings.forEach((a)=>{
+    const x=a[0],z=a[1],co=a[2];
+    addBox(staticData,x,.18,z,3.7,.18,1.15,co);
+    addBox(staticData,x,2.48,z-.12,3.7,.16,.20,darkMetal);
+    addBox(staticData,x,2.28,z-.12,3.35,.10,.08,roadWhite);
+  });
+
+  // Repeated balconies add a visible silhouette to the existing plain facades.
+  for(const b of stage2BuildingRecords){
+    const front=b.z-b.d/2-.30;
+    const floors=Math.max(1,Math.floor((b.h-4)/3.1));
+    const rowChoices=[1,Math.floor(floors*.62)];
+    rowChoices.forEach((row,j)=>{
+      if(row>=floors || (j===1 && row===rowChoices[0])) return;
+      const y=3+row*3.1-0.70;
+      const col=(b.id+j)%2===0?-1:1;
+      const x=b.x+col*b.w*.29;
+      addBox(staticData,x,y,front,.98,.12,.62,darkMetal);
+      addBox(staticData,x,y+.36,front-.25,.98,.08,.08,curb);
+      addBox(staticData,x-.45,y+.19,front-.25,.07,.38,.07,curb);
+      addBox(staticData,x+.45,y+.19,front-.25,.07,.38,.07,curb);
+      addBox(staticData,x,y+.18,front-.25,.06,.36,.06,curb);
+      addBox(staticData,x,y-.10,front-.18,.07,.25,.07,darkMetal);
+    });
+  }
+}
+buildStage2VisibilityFix();
+
+
+
 const vertexShader=`
 attribute vec3 aPosition;
 attribute vec3 aColor;
@@ -510,8 +605,8 @@ void main(){
   gl_Position=clip;
   vec3 light=normalize(vec3(-0.36,0.88,0.30));
   float diffuse=max(dot(normalize(aNormal),light),0.0);
-  vColor=aColor*(0.56+diffuse*0.72);
-  vFog=clamp((clip.w-72.0)/168.0,0.0,0.70);
+  vColor=aColor*(0.62+diffuse*0.78);
+  vFog=clamp((clip.w-100.0)/205.0,0.0,0.58);
 }`;
 const fragmentShader=`
 precision mediump float;
