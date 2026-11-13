@@ -86,6 +86,9 @@ body.car-mode #actionGrid,body.car-mode #interact{display:none!important}
 .launchFoot{margin-top:24px;font-size:8px;letter-spacing:2px;color:#858d95;text-align:center}
 @media(prefers-reduced-motion:reduce){.getGameText{animation:none}}
 
+
+/* DINDU_STAGE3_TRAFFIC_CAMERA_NPC: HUD health bar */
+.healthStat{min-width:104px}.healthStat #healthTrack{height:6px;width:78px;margin-top:5px;border-radius:8px;background:#29383d;overflow:hidden;border:1px solid #69777b}.healthStat #healthFill{display:block;height:100%;width:100%;background:#53c77b;transition:width .18s ease,background .18s ease}
 </style>
 </head>
 <body>
@@ -97,7 +100,7 @@ body.car-mode #actionGrid,body.car-mode #interact{display:none!important}
     <div class="stats">
       <div class="stat">CASH <span id="cash">$1,200</span></div>
       <div class="stat">XP <span id="xp">0</span></div>
-      <div class="stat">LVL <span id="level">1</span></div>
+      <div class="stat">LVL <span id="level">1</span></div><div class="stat healthStat">HEALTH <span id="healthText">100%</span><div id="healthTrack"><i id="healthFill"></i></div></div>
     </div>
   </div>
 
@@ -266,6 +269,36 @@ let selectedGadget='PULSE SHIELD';
 let lastSave=0;
 let lastToast=0;
 let lastFrame=0;
+
+/* DINDU_STAGE3_TRAFFIC_CAMERA_NPC: simulation state */
+let cameraTargetYaw=cameraYaw;
+let cameraTargetPitch=cameraPitch;
+let cameraTargetCarOffset=cameraCarOffset;
+let cameraActualDistance=cameraDistance;
+let playerHealth=100;
+let playerDownTimer=0;
+let playerHurtCooldown=0;
+const hospitalSpawn={x:-78,z:9};
+let npcPunchCooldown=0;
+const npcs=[
+  {id:0,x:7,z:14,yaw:.4,health:100,state:'walking',stateTimer:0,respawnTimer:0,hurtCooldown:0,walkPhase:0,route:[[7,14],[8,17],[7,20],[6,17]],routeIndex:1},
+  {id:1,x:-7,z:-14,yaw:2.2,health:100,state:'walking',stateTimer:0,respawnTimer:0,hurtCooldown:0,walkPhase:1,route:[[-7,-14],[-8,-11],[-7,-8],[-6,-11]],routeIndex:1},
+  {id:2,x:42,z:9,yaw:1.1,health:100,state:'walking',stateTimer:0,respawnTimer:0,hurtCooldown:0,walkPhase:2,route:[[42,9],[43,12],[42,15],[41,12]],routeIndex:1},
+  {id:3,x:-42,z:-9,yaw:-1,health:100,state:'walking',stateTimer:0,respawnTimer:0,hurtCooldown:0,walkPhase:3,route:[[-42,-9],[-43,-6],[-42,-3],[-41,-6]],routeIndex:1}
+];
+const trafficCars=[
+  {id:0,axis:'NS',dir:1,x:-2.3,z:-88,yaw:0,speed:0,maxSpeed:5.4,wheelSpin:0,color:[.72,.18,.13]},
+  {id:1,axis:'NS',dir:-1,x:2.3,z:88,yaw:Math.PI,speed:0,maxSpeed:5.2,wheelSpin:0,color:[.14,.43,.66]},
+  {id:2,axis:'NS',dir:1,x:-38.3,z:-55,yaw:0,speed:0,maxSpeed:5.0,wheelSpin:0,color:[.72,.58,.17]},
+  {id:3,axis:'EW',dir:1,x:-88,z:-2.3,yaw:Math.PI/2,speed:0,maxSpeed:5.3,wheelSpin:0,color:[.18,.53,.34]},
+  {id:4,axis:'EW',dir:-1,x:88,z:2.3,yaw:-Math.PI/2,speed:0,maxSpeed:5.1,wheelSpin:0,color:[.58,.27,.62]},
+  {id:5,axis:'EW',dir:-1,x:55,z:38.3,yaw:-Math.PI/2,speed:0,maxSpeed:4.9,wheelSpin:0,color:[.65,.35,.19]}
+];
+const trafficControllers=new Map();
+for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++) {
+  trafficControllers.set(ix+','+iz,{ix,iz,phase:'NS_GREEN',elapsed:0});
+}
+
 
 const obstacles=[];
 const staticData=[];
@@ -544,15 +577,20 @@ function buildStage2VisibilityFix(){
   }
 
   // Traffic signals on the main central junctions provide clear city landmarks.
-  for(let ix=-1;ix<=1;ix++) for(let iz=-1;iz<=1;iz++){
+  for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++){
     const cx=ix*36,cz=iz*36;
     for(const sx of [-1,1]) for(const sz of [-1,1]){
       const x=cx+sx*6.25,z=cz+sz*6.25;
       addBox(staticData,x,1.85,z,.16,3.7,.16,darkMetal);
       addBox(staticData,x,3.48,z,.48,1.05,.38,signalHousing);
-      addSphere(staticData,x,3.78,z+.205,.135,.135,.075,red,10,7);
-      addSphere(staticData,x,3.48,z+.205,.135,.135,.075,amber,10,7);
-      addSphere(staticData,x,3.18,z+.205,.135,.135,.075,green,10,7);
+      addSphere(staticData,x,3.78,z+.205,.135,.135,.075,color(76,34,33),10,7);
+      addSphere(staticData,x,3.48,z+.205,.135,.135,.075,color(77,60,34),10,7);
+      addSphere(staticData,x,3.18,z+.205,.135,.135,.075,color(31,65,45),10,7);
+      const sideX=x+.58,sideZ=z-.12;
+      addBox(staticData,sideX,3.48,sideZ,.48,1.05,.38,signalHousing,Math.PI/2);
+      addSphere(staticData,sideX+.205,3.78,sideZ,.135,.135,.075,color(76,34,33),10,7);
+      addSphere(staticData,sideX+.205,3.48,sideZ,.135,.135,.075,color(77,60,34),10,7);
+      addSphere(staticData,sideX+.205,3.18,sideZ,.135,.135,.075,color(31,65,45),10,7);
       addBox(staticData,x,4.12,z,.78,.09,.52,darkMetal);
     }
   }
@@ -590,6 +628,292 @@ function buildStage2VisibilityFix(){
   }
 }
 buildStage2VisibilityFix();
+// Small hospital marker at the existing map edge; respawns use this safe roadside point.
+addBox(staticData,-79,2.8,9,.22,5.2,.22,color(55,65,70));
+addBox(staticData,-79,4.8,9,2.2,1.35,.18,color(226,230,224));
+addBox(staticData,-79,4.8,8.88,.38,1.02,.08,color(194,54,51));
+addBox(staticData,-79,4.8,8.83,.92,.34,.08,color(194,54,51));
+
+
+/* DINDU_STAGE3_TRAFFIC_CAMERA_NPC: coordinated intersection and pedestrian simulation */
+function trafficControllerAt(ix,iz){return trafficControllers.get(ix+','+iz)||null;}
+function trafficStates(controller){
+  try{
+    if(!controller) return {NS:'red',EW:'red'};
+    switch(controller.phase){
+      case 'NS_GREEN': return {NS:'green',EW:'red'};
+      case 'NS_YELLOW': return {NS:'amber',EW:'red'};
+      case 'EW_GREEN': return {NS:'red',EW:'green'};
+      case 'EW_YELLOW': return {NS:'red',EW:'amber'};
+      case 'ALL_RED_TO_EW':
+      case 'ALL_RED_TO_NS': return {NS:'red',EW:'red'};
+      default: return {NS:'red',EW:'red'};
+    }
+  }catch(_){return {NS:'red',EW:'red'};}
+}
+function intersectionOccupied(controller){
+  const cx=controller.ix*36,cz=controller.iz*36;
+  if(trafficCars.some(c=>Math.abs(c.x-cx)<4.7&&Math.abs(c.z-cz)<4.7)) return true;
+  if(player.inCar&&Math.abs(player.x-cx)<4.7&&Math.abs(player.z-cz)<4.7) return true;
+  return false;
+}
+function updateTrafficControllers(dt){
+  for(const controller of trafficControllers.values()){
+    controller.elapsed+=dt;
+    let duration=0,next='';
+    switch(controller.phase){
+      case 'NS_GREEN': duration=9;next='NS_YELLOW';break;
+      case 'NS_YELLOW': duration=3;next='ALL_RED_TO_EW';break;
+      case 'ALL_RED_TO_EW':
+        if(controller.elapsed>=2.2&&!intersectionOccupied(controller)){controller.phase='EW_GREEN';controller.elapsed=0;}
+        continue;
+      case 'EW_GREEN': duration=9;next='EW_YELLOW';break;
+      case 'EW_YELLOW': duration=3;next='ALL_RED_TO_NS';break;
+      case 'ALL_RED_TO_NS':
+        if(controller.elapsed>=2.2&&!intersectionOccupied(controller)){controller.phase='NS_GREEN';controller.elapsed=0;}
+        continue;
+      default: controller.phase='ALL_RED_TO_EW';controller.elapsed=0;continue;
+    }
+    if(controller.elapsed>=duration){controller.phase=next;controller.elapsed=0;}
+  }
+}
+function drawTrafficSignals(out){
+  const bright={red:color(255,49,43),amber:color(255,190,54),green:color(72,255,126)};
+  const ys={red:3.78,amber:3.48,green:3.18};
+  for(const controller of trafficControllers.values()){
+    const states=trafficStates(controller);
+    for(const sx of [-1,1]) for(const sz of [-1,1]){
+      const x=controller.ix*36+sx*6.25;
+      const z=controller.iz*36+sz*6.25;
+      const ns=states.NS, ew=states.EW;
+      addSphere(out,x,ys[ns],z+.205,.15,.15,.085,bright[ns],9,6);
+      addSphere(out,x+.58+.205,ys[ew],z-.12,.15,.15,.085,bright[ew],9,6);
+    }
+  }
+}
+function nextTrafficStop(vehicle){
+  const axis=vehicle.axis,dir=vehicle.dir;
+  const coord=axis==='NS'?vehicle.z:vehicle.x;
+  const cross=axis==='NS'?vehicle.x:vehicle.z;
+  const crossGrid=Math.round(cross/36);
+  if(Math.abs(cross-crossGrid*36)>5.4) return null;
+  const nextGrid=dir>0?Math.floor(coord/36)+1:Math.ceil(coord/36)-1;
+  if(nextGrid < -2 || nextGrid > 2 || crossGrid < -2 || crossGrid > 2) return null;
+  const controller=axis==='NS'?trafficControllerAt(crossGrid,nextGrid):trafficControllerAt(nextGrid,crossGrid);
+  if(!controller) return null;
+  const center=nextGrid*36;
+  const stopLine=center-dir*7.1;
+  return {controller,axis,dir,stopLine,distanceToStop:dir*(stopLine-coord)};
+}
+function signalPermits(info,speed){
+  if(!info||info.distanceToStop<0) return true;
+  const state=trafficStates(info.controller)[info.axis];
+  if(state==='green') return true;
+  if(state==='amber'){
+    const brakingDistance=(speed*speed)/(2*4.6)+.8;
+    return speed>1.2&&info.distanceToStop<=brakingDistance;
+  }
+  return false;
+}
+function intersectionHasCrossTraffic(controller,axis){
+  const cx=controller.ix*36,cz=controller.iz*36;
+  if(trafficCars.some(c=>c.axis!==axis&&Math.abs(c.x-cx)<4.5&&Math.abs(c.z-cz)<4.5)) return true;
+  if(player.inCar&&Math.abs(player.x-cx)<4.5&&Math.abs(player.z-cz)<4.5){
+    const playerAxis=Math.abs(Math.sin(player.yaw))>Math.abs(Math.cos(player.yaw))?'EW':'NS';
+    if(playerAxis!==axis) return true;
+  }
+  return false;
+}
+function trafficCarAhead(vehicle){
+  for(const other of trafficCars){
+    if(other===vehicle||other.axis!==vehicle.axis||other.dir!==vehicle.dir) continue;
+    const crossA=vehicle.axis==='NS'?vehicle.x:vehicle.z;
+    const crossB=vehicle.axis==='NS'?other.x:other.z;
+    if(Math.abs(crossA-crossB)>1.35) continue;
+    const a=vehicle.axis==='NS'?vehicle.z:vehicle.x;
+    const b=vehicle.axis==='NS'?other.z:other.x;
+    const gap=vehicle.dir*(b-a);
+    if(gap>0&&gap<8.5) return true;
+  }
+  if(player.inCar){
+    const playerAxis=Math.abs(Math.sin(player.yaw))>Math.abs(Math.cos(player.yaw))?'EW':'NS';
+    const playerDir=(playerAxis==='NS'?Math.sign(Math.cos(player.yaw)):Math.sign(Math.sin(player.yaw)))*(carSpeed<-.1?-1:1);
+    if(playerAxis===vehicle.axis&&playerDir===vehicle.dir){
+      const crossA=vehicle.axis==='NS'?vehicle.x:vehicle.z;
+      const crossB=vehicle.axis==='NS'?player.x:player.z;
+      const a=vehicle.axis==='NS'?vehicle.z:vehicle.x;
+      const b=vehicle.axis==='NS'?player.z:player.x;
+      const gap=vehicle.dir*(b-a);
+      if(Math.abs(crossA-crossB)<1.45&&gap>0&&gap<7.0) return true;
+    }
+  }
+  for(let i=0;i<parkedCars.length;i++){
+    const p=parkedCars[i];
+    const crossA=vehicle.axis==='NS'?vehicle.x:vehicle.z;
+    const crossB=vehicle.axis==='NS'?p.x:p.z;
+    if(Math.abs(crossA-crossB)>1.45) continue;
+    const a=vehicle.axis==='NS'?vehicle.z:vehicle.x;
+    const b=vehicle.axis==='NS'?p.z:p.x;
+    const gap=vehicle.dir*(b-a);
+    if(gap>0&&gap<6.2) return true;
+  }
+  return false;
+}
+function updateTrafficCars(dt){
+  for(const car of trafficCars){
+    const info=nextTrafficStop(car);
+    let hold=false;
+    if(info&&info.distanceToStop>=0){
+      hold=!signalPermits(info,car.speed);
+      if(intersectionHasCrossTraffic(info.controller,car.axis)&&info.distanceToStop<12) hold=true;
+    }
+    if(trafficCarAhead(car)) hold=true;
+    const target=hold&&info&&info.distanceToStop<15?0:car.maxSpeed;
+    if(target>car.speed) car.speed=Math.min(target,car.speed+2.0*dt);
+    else car.speed=Math.max(target,car.speed-5.0*dt);
+    let nextCoord=(car.axis==='NS'?car.z:car.x)+car.dir*car.speed*dt;
+    if(hold&&info&&info.distanceToStop>=0&&car.dir*(info.stopLine-nextCoord)<0){nextCoord=info.stopLine;car.speed=0;}
+    if(car.axis==='NS') car.z=nextCoord; else car.x=nextCoord;
+    car.wheelSpin=(car.wheelSpin+car.dir*car.speed*dt/.43)%(Math.PI*2);
+    if(car.axis==='NS'){
+      car.yaw=car.dir>0?0:Math.PI;
+      if(car.z>99) car.z=-99;
+      if(car.z<-99) car.z=99;
+    }else{
+      car.yaw=car.dir>0?Math.PI/2:-Math.PI/2;
+      if(car.x>99) car.x=-99;
+      if(car.x<-99) car.x=99;
+    }
+  }
+}
+function playerTrafficInfo(){
+  if(!player.inCar) return null;
+  const axis=Math.abs(Math.sin(player.yaw))>Math.abs(Math.cos(player.yaw))?'EW':'NS';
+  const forward=axis==='EW'?Math.sign(Math.sin(player.yaw)):Math.sign(Math.cos(player.yaw));
+  const dir=forward*((carReverseHeld||carSpeed<-.1)?-1:1);
+  if(!dir) return null;
+  const cross=axis==='NS'?player.x:player.z;
+  if(Math.abs(cross-Math.round(cross/36)*36)>5.2) return null;
+  return nextTrafficStop({axis,dir,x:player.x,z:player.z});
+}
+function drawNpcHealthBar(out,n){
+  const ratio=Math.max(0,Math.min(1,n.health/100));
+  const barColor=ratio>.55?color(67,203,111):ratio>.25?color(241,184,61):color(225,75,63);
+  addBox(out,n.x,2.62,n.z,.98,.095,.12,color(18,23,25));
+  if(ratio>.01) addBox(out,n.x-.49+ratio*.49,2.63,n.z-.07,.96*ratio,.065,.05,barColor);
+}
+function damageNpc(n,amount){
+  if(!n||n.state==='down'||n.state==='gettingUp'||n.hurtCooldown>0) return;
+  n.health=Math.max(0,n.health-amount);
+  n.hurtCooldown=.9;
+  n.state='down';
+  n.stateTimer=n.health>0?2.0:0;
+  n.respawnTimer=n.health<=0?5.5:0;
+}
+function npcBlocked(n,x,z){
+  if(Math.abs(x)>98||Math.abs(z)>98) return true;
+  if(obstacles.some(o=>x>o.minX-.45&&x<o.maxX+.45&&z>o.minZ-.45&&z<o.maxZ+.45)) return true;
+  if(parkedCars.some(c=>distance(x,z,c.x,c.z)<2.0)) return true;
+  if(trafficCars.some(c=>distance(x,z,c.x,c.z)<2.0)) return true;
+  return npcs.some(other=>other!==n&&other.state!=='down'&&distance(x,z,other.x,other.z)<.85);
+}
+function updateNpcs(dt){
+  for(const n of npcs){
+    n.hurtCooldown=Math.max(0,n.hurtCooldown-dt);
+    if(n.state==='down'){
+      if(n.health<=0){
+        n.respawnTimer-=dt;
+        if(n.respawnTimer<=0){
+          n.x=hospitalSpawn.x+(n.id%2)*2.0;
+          n.z=hospitalSpawn.z+(n.id%3)*1.8;
+          n.health=100;n.state='gettingUp';n.stateTimer=1.1;n.routeIndex=0;
+        }
+      }else{
+        n.stateTimer-=dt;
+        if(n.stateTimer<=0){n.state='gettingUp';n.stateTimer=.95;}
+      }
+      continue;
+    }
+    if(n.state==='gettingUp'){
+      n.stateTimer-=dt;
+      if(n.stateTimer<=0)n.state='walking';
+      continue;
+    }
+    n.walkPhase+=dt*5.2;
+    const target=n.route[n.routeIndex];
+    const dx=target[0]-n.x,dz=target[1]-n.z,d=Math.hypot(dx,dz);
+    if(d<.65){n.routeIndex=(n.routeIndex+1)%n.route.length;continue;}
+    const step=Math.min(d,1.05*dt),nx=n.x+dx/d*step,nz=n.z+dz/d*step;
+    if(!npcBlocked(n,nx,nz)){n.x=nx;n.z=nz;n.yaw=Math.atan2(dx,dz);}
+    else n.routeIndex=(n.routeIndex+1)%n.route.length;
+  }
+}
+function damagePlayer(amount){
+  if(playerHurtCooldown>0||playerHealth<=0) return;
+  playerHealth=Math.max(0,playerHealth-amount);
+  playerHurtCooldown=1.35;
+  if(playerHealth<=0){
+    playerDownTimer=4.0;
+    player.inCar=false;player.carIndex=-1;document.body.classList.remove('car-mode');document.getElementById('carControls').classList.remove('active');
+    carSpeed=0;carAccelerateHeld=carBrakeHeld=carReverseHeld=false;
+  }else if(!player.inCar){
+    playerDownTimer=1.35;player.vy=0;
+  }
+  updateHud();
+}
+function updateStage3Simulation(dt){
+  playerHurtCooldown=Math.max(0,playerHurtCooldown-dt);
+  npcPunchCooldown=Math.max(0,npcPunchCooldown-dt);
+  updateTrafficControllers(dt);
+  updateTrafficCars(dt);
+  updateNpcs(dt);
+  for(const car of trafficCars){
+    for(const n of npcs){
+      if(n.state==='walking'&&n.hurtCooldown<=0&&distance(car.x,car.z,n.x,n.z)<2.15){
+        damageNpc(n,38);car.speed=Math.min(car.speed,1.0);
+      }
+    }
+    if(player.inCar&&Math.abs(carSpeed)>1.5&&distance(player.x,player.z,car.x,car.z)<2.75){
+      carSpeed=0;damagePlayer(10);
+    }else if(!player.inCar&&playerDownTimer<=0&&distance(player.x,player.z,car.x,car.z)<2.15){
+      damagePlayer(28);
+    }
+  }
+  if(player.inCar&&Math.abs(carSpeed)>2){
+    for(const n of npcs){
+      if(n.state==='walking'&&distance(player.x,player.z,n.x,n.z)<2.2) damageNpc(n,42);
+    }
+  }
+  if(playerHealth<=0&&playerDownTimer>0){
+    playerDownTimer=Math.max(0,playerDownTimer-dt);
+    if(playerDownTimer<=0){
+      player.x=hospitalSpawn.x;player.z=hospitalSpawn.z;player.y=0;player.vy=0;
+      player.inCar=false;player.carIndex=-1;playerHealth=100;
+      document.body.classList.remove('car-mode');
+      document.getElementById('carControls').classList.remove('active');
+      saveGame();updateHud();showToast('HOSPITAL · You have recovered and respawned.');
+    }
+  }else if(playerDownTimer>0){
+    playerDownTimer=Math.max(0,playerDownTimer-dt);
+  }
+}
+function smoothAngle(current,target,dt){
+  const delta=Math.atan2(Math.sin(target-current),Math.cos(target-current));
+  return current+delta*(1-Math.exp(-15*dt));
+}
+function cameraPointBlocked(x,z){
+  return obstacles.some(o=>x>o.minX-.32&&x<o.maxX+.32&&z>o.minZ-.32&&z<o.maxZ+.32);
+}
+function safeCameraDistance(target,yaw,pitch,desired){
+  const horizontal=Math.cos(pitch);
+  for(let d=.75;d<=desired;d+=.24){
+    const x=target[0]-Math.sin(yaw)*horizontal*d;
+    const z=target[2]-Math.cos(yaw)*horizontal*d;
+    if(cameraPointBlocked(x,z)) return Math.max(.85,d-.48);
+  }
+  return desired;
+}
+
 
 
 
@@ -729,6 +1053,21 @@ function drawCar(out,x,z,yaw,body,spin=0){
   addBox(out,frontBumper[0],.43,frontBumper[1],2.12,.18,.16,metal,yaw);
   const rearBumper=localPoint(x,z,yaw,0,-2.12);
   addBox(out,rearBumper[0],.43,rearBumper[1],2.12,.18,.16,metal,yaw);
+  const hood=localPoint(x,z,yaw,0,1.28);
+  addBox(out,hood[0],.975,hood[1],1.62,.055,1.02,body,yaw);
+  for(const side of [-1,1]){
+    const seam=localPoint(x,z,yaw,side*1.078,-.22);
+    addBox(out,seam[0],.70,seam[1],.035,.36,1.52,trim,yaw);
+    const vent=localPoint(x,z,yaw,side*.48,1.72);
+    addBox(out,vent[0],.79,vent[1],.28,.045,.48,metal,yaw);
+  }
+  const frontPlate=localPoint(x,z,yaw,0,2.17);
+  addBox(out,frontPlate[0],.56,frontPlate[1],.54,.16,.055,color(205,211,209),yaw);
+  const rearPlate=localPoint(x,z,yaw,0,-2.17);
+  addBox(out,rearPlate[0],.56,rearPlate[1],.54,.16,.055,color(205,211,209),yaw);
+  const grillePoint=localPoint(x,z,yaw,0,2.145);
+  for(let slat=-2;slat<=2;slat++) addBox(out,grillePoint[0]+slat*.13,.69,grillePoint[1],.035,.13,.045,metal,yaw);
+
   for(const side of [-1,1]){
     for(const dz of [-1.35,1.35]){
       const p=localPoint(x,z,yaw,side*1.02,dz);
@@ -745,6 +1084,15 @@ function drawCar(out,x,z,yaw,body,spin=0){
   }
 }
 function drawPerson(out,x,z,yaw,walk=0,punch=false){
+  const downPose=arguments.length>6?arguments[6]:false;
+  if(downPose){
+    addBox(out,x,.32,z,.92,.24,.48,color(190,145,83),yaw);
+    addSphere(out,x, .48,z+.48,.19,.18,.19,color(164,126,99),12,8);
+    addBox(out,x,.28,z-.43,.30,.20,.48,color(46,49,53),yaw);
+    addBox(out,x+.36,.27,z-.30,.28,.17,.42,color(46,49,53),yaw);
+    return;
+  }
+
   const torso=color(44,74,80),shirt=color(190,145,83),pants=color(46,49,53);
   const skin=color(164,126,99),shoe=color(25,27,28),hair=color(35,31,28);
   const point=(dx,dz)=>localPoint(x,z,yaw,dx,dz);
@@ -753,6 +1101,17 @@ function drawPerson(out,x,z,yaw,walk=0,punch=false){
   addBox(out,x,1.27,z,.66,.72,.37,torso,yaw);
   addBox(out,x,1.42,z+.015,.68,.38,.385,shirt,yaw);
   addBox(out,x,1.01,z+.015,.66,.1,.39,color(35,39,40),yaw);
+  addSphere(out,x,1.35,z,.375,.30,.235,shirt,14,9);
+  addSphere(out,x,1.09,z,.30,.23,.205,torso,12,8);
+  addSphere(out,x,1.72,z,.115,.14,.12,skin,10,7);
+  addBox(out,x,1.57,z+.205,.36,.10,.055,color(224,205,169),yaw);
+  addBox(out,x,.96,z+.205,.43,.075,.055,color(190,164,106),yaw);
+  addBox(out,x,.97,z+.245,.10,.10,.045,color(219,192,123),yaw);
+  for(const side of [-1,1]){
+    addBox(out,x+side*.205,1.13,z+.205,.16,.25,.035,color(52,82,82),yaw);
+    addBox(out,x+side*.09,1.83,z+.205,.09,.025,.025,hair,yaw);
+  }
+
   addSphere(out,x,1.68,z,.12,.13,.12,skin,10,7);
   addSphere(out,x,1.92,z,.225,.26,.22,skin,14,10);
   addSphere(out,x,2.075,z-.015,.225,.105,.22,hair,12,7);
@@ -805,17 +1164,18 @@ function dynamicScene(time){
     if(player.inCar&&player.carIndex===i)return;
     drawCar(out,c.x,c.z,c.yaw,c.color,0);
   });
+  trafficCars.forEach(c=>drawCar(out,c.x,c.z,c.yaw,c.color,c.wheelSpin));
+  drawTrafficSignals(out);
   if(player.inCar){
     drawCar(out,player.x,player.z,player.yaw,parkedCars[player.carIndex].color,carWheelSpin);
   }else{
-    const avatar=[];drawPerson(avatar,player.x,player.z,player.yaw,Math.hypot(stickX,stickY)>.08?time*.009:0,punchTimer>0);for(let i=0;i<avatar.length;i+=9){avatar[i]=player.x+(avatar[i]-player.x)*1.18;avatar[i+1]=avatar[i+1]*1.18+player.y;avatar[i+2]=player.z+(avatar[i+2]-player.z)*1.18;}out.push(...avatar);
+    const avatar=[];drawPerson(avatar,player.x,player.z,player.yaw,Math.hypot(stickX,stickY)>.08?time*.009:0,punchTimer>0,playerDownTimer>0||playerHealth<=0);for(let i=0;i<avatar.length;i+=9){avatar[i]=player.x+(avatar[i]-player.x)*1.18;avatar[i+1]=avatar[i+1]*1.18+player.y;avatar[i+2]=player.z+(avatar[i+2]-player.z)*1.18;}out.push(...avatar);
   }
 
-  const npcData=[
-    {x:10,z:15,yaw:.4},{x:-28,z:20,yaw:2.2},
-    {x:44,z:35,yaw:1.1},{x:-48,z:-23,yaw:-1}
-  ];
-  npcData.forEach((n,i)=>drawPerson(out,n.x,n.z,n.yaw,time*.001+i*1.5,false));
+  npcs.forEach(n=>{
+    drawPerson(out,n.x,n.z,n.yaw,n.walkPhase,false,n.state==='down');
+    if(n.health<100||n.state==='down') drawNpcHealthBar(out,n);
+  });
 
   const m=currentMission();
   if(m){
@@ -831,7 +1191,10 @@ function dynamicScene(time){
 function isBlocked(x,z){
   if(Math.abs(x)>100||Math.abs(z)>100)return true;
   const r=player.inCar?1.3:.48;
-  return obstacles.some(o=>x>o.minX-r&&x<o.maxX+r&&z>o.minZ-r&&z<o.maxZ+r);
+  if(obstacles.some(o=>x>o.minX-r&&x<o.maxX+r&&z>o.minZ-r&&z<o.maxZ+r)) return true;
+  if(parkedCars.some((c,i)=>!(player.inCar&&i===player.carIndex)&&distance(x,z,c.x,c.z)<(player.inCar?4.1:1.85))) return true;
+  if(player.inCar&&trafficCars.some(c=>distance(x,z,c.x,c.z)<4.1)){damagePlayer(8);return true;}
+  return false;
 }
 
 function showToast(message){
@@ -844,6 +1207,10 @@ function updateHud(){
   document.getElementById('cash').textContent='$'+cash.toLocaleString();
   document.getElementById('xp').textContent=xp.toLocaleString();
   document.getElementById('level').textContent=String(1+Math.floor(xp/1000));
+  const healthText=document.getElementById('healthText');
+  const healthFill=document.getElementById('healthFill');
+  if(healthText) healthText.textContent=Math.round(playerHealth)+'%';
+  if(healthFill){healthFill.style.width=playerHealth+'%';healthFill.style.background=playerHealth>55?'#53c77b':playerHealth>25?'#efb94d':'#e45b50';}
   if(m){
     document.getElementById('missionCount').textContent='MISSION '+String(m.number).padStart(2,'0')+' / 100 · '+m.mode;
     document.getElementById('missionTitle').textContent=m.name;
@@ -916,8 +1283,12 @@ function interact(){
 
 function punch(){
   if(player.inCar){showToast('Exit the vehicle first.');return;}
+  if(playerDownTimer>0){showToast('Recover before moving.');return;}
   punchTimer=.42;
-  showToast('ARCADE PUNCH');
+  let target=null,best=3.25;
+  for(const n of npcs){const d=distance(player.x,player.z,n.x,n.z);if(n.state==='walking'&&d<best){best=d;target=n;}}
+  if(target){damageNpc(target,24);showToast('NPC HEALTH · '+Math.max(0,target.health)+'%');}
+  else showToast('PUNCH · Move closer to a pedestrian.');
 }
 function jump(){
   if(player.inCar){showToast('Exit the vehicle to jump.');return;}
@@ -1008,6 +1379,12 @@ function resize(){
 }
 window.addEventListener('resize',resize);
 resize();
+function updateStage3Camera(dt){
+  cameraYaw=smoothAngle(cameraYaw,cameraTargetYaw,dt);
+  cameraTargetPitch=Math.max(-.24,Math.min(1.52,cameraTargetPitch));
+  cameraPitch+=(cameraTargetPitch-cameraPitch)*(1-Math.exp(-15*dt));
+  cameraCarOffset=smoothAngle(cameraCarOffset,cameraTargetCarOffset,dt);
+}
 
 function render(time){
   requestAnimationFrame(render);
@@ -1015,7 +1392,25 @@ function render(time){
   lastFrame=time;
 
   if(running&&!paused){
-    if(player.inCar){if(dinduCarOsc&&dinduCarAudio)dinduCarOsc.frequency.setTargetAtTime(65+Math.abs(carSpeed)*12,dinduCarAudio.currentTime,.12);if(Math.abs(stickX)>.05&&Math.abs(carSpeed)>.1)player.yaw+=stickX*1.8*dt*(carSpeed<0?-1:1);if(carBrakeHeld)carSpeed*=Math.max(0,1-10*dt);else if(carAccelerateHeld)carSpeed=Math.min(15,carSpeed+8*dt);else if(carReverseHeld)carSpeed=Math.max(-6,carSpeed-7*dt);else carSpeed*=Math.max(0,1-1.2*dt);if(Math.abs(carSpeed)<.04)carSpeed=0;if(carSpeed!==0){carWheelSpin=(carWheelSpin+carSpeed*dt/.43)%(Math.PI*2);const nx=player.x+Math.sin(player.yaw)*carSpeed*dt;const nz=player.z+Math.cos(player.yaw)*carSpeed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}else carSpeed=0}}else{const mag=Math.hypot(stickX,stickY);if(mag>.08){const camYaw=player.inCar?player.yaw:cameraYaw;const fx=Math.sin(camYaw),fz=Math.cos(camYaw);const rx=Math.cos(camYaw),rz=-Math.sin(camYaw);const forward=-stickY;const strafe=stickX;const mx=fx*forward+rx*strafe;const mz=fz*forward+rz*strafe;const len=Math.hypot(mx,mz)||1;const speed=(runHeld?8.2:3.7)*(speedTimer>0?1.55:1);const nx=player.x+(mx/len)*speed*dt;const nz=player.z+(mz/len)*speed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}player.yaw=Math.atan2(mx,mz)}}
+  updateStage3Camera(dt);
+    if(playerDownTimer>0){stickX=0;stickY=0;runHeld=false;}
+    if(player.inCar){if(dinduCarOsc&&dinduCarAudio)dinduCarOsc.frequency.setTargetAtTime(65+Math.abs(carSpeed)*12,dinduCarAudio.currentTime,.12);if(Math.abs(stickX)>.05&&Math.abs(carSpeed)>.1)player.yaw+=stickX*1.8*dt*(carSpeed<0?-1:1);if(carBrakeHeld)carSpeed*=Math.max(0,1-10*dt);else if(carAccelerateHeld)carSpeed=Math.min(15,carSpeed+8*dt);else if(carReverseHeld)carSpeed=Math.max(-6,carSpeed-7*dt);else carSpeed*=Math.max(0,1-1.2*dt);if(Math.abs(carSpeed)<.04)carSpeed=0;if(carSpeed!==0){
+      carWheelSpin=(carWheelSpin+carSpeed*dt/.43)%(Math.PI*2);
+      let nx=player.x+Math.sin(player.yaw)*carSpeed*dt;
+      let nz=player.z+Math.cos(player.yaw)*carSpeed*dt;
+      const signalInfo=playerTrafficInfo();
+      const signalHold=signalInfo&&(!signalPermits(signalInfo,Math.abs(carSpeed))||intersectionHasCrossTraffic(signalInfo.controller,signalInfo.axis));
+      if(signalHold&&signalInfo.distanceToStop<15) carSpeed=Math.max(0,carSpeed-8*dt);
+      if(signalHold&&signalInfo.distanceToStop>=0){
+        const nextCoord=signalInfo.axis==='NS'?nz:nx;
+        if(signalInfo.dir*(signalInfo.stopLine-nextCoord)<0){
+          if(signalInfo.axis==='NS')nz=signalInfo.stopLine;else nx=signalInfo.stopLine;
+          carSpeed=0;
+        }
+      }
+      if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}else carSpeed=0;
+    }}else{const mag=Math.hypot(stickX,stickY);if(mag>.08){const camYaw=player.inCar?player.yaw:cameraYaw;const fx=Math.sin(camYaw),fz=Math.cos(camYaw);const rx=Math.cos(camYaw),rz=-Math.sin(camYaw);const forward=-stickY;const strafe=stickX;const mx=fx*forward+rx*strafe;const mz=fz*forward+rz*strafe;const len=Math.hypot(mx,mz)||1;const speed=(runHeld?8.2:3.7)*(speedTimer>0?1.55:1);const nx=player.x+(mx/len)*speed*dt;const nz=player.z+(mz/len)*speed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}player.yaw=Math.atan2(mx,mz)}}
+    updateStage3Simulation(dt);
     if(!player.inCar){
       player.vy-=17*dt;
       player.y+=player.vy*dt;
@@ -1038,7 +1433,11 @@ function render(time){
   const target=[player.x,1.2+player.y,player.z];
   const horizontalDistance=Math.cos(cameraPitch)*cameraDistance;
   const verticalDistance=Math.sin(cameraPitch)*cameraDistance;
-  const eye=[player.x-fx*horizontalDistance,target[1]+verticalDistance,player.z-fz*horizontalDistance];
+  const wantedDistance=safeCameraDistance(target,camYaw,cameraPitch,cameraDistance);
+  cameraActualDistance+=(wantedDistance-cameraActualDistance)*(1-Math.exp(-18*dt));
+  const safeHorizontal=Math.cos(cameraPitch)*cameraActualDistance;
+  const safeVertical=Math.sin(cameraPitch)*cameraActualDistance;
+  const eye=[player.x-fx*safeHorizontal,target[1]+safeVertical,player.z-fz*safeHorizontal];
   const view=lookAt(eye,target,[0,1,0]);
   const proj=perspective(Math.PI/3,canvas.width/canvas.height,.1,280);
   const vp=multiply(proj,view);
@@ -1123,9 +1522,9 @@ canvas.addEventListener('pointermove',e=>{
  }
  if(lookBackPointer===e.pointerId)return;
  if(Math.hypot(e.clientX-p.startX,e.clientY-p.startY)>10)cancelLookBackTimer();
- if(player.inCar)cameraCarOffset+=dx*.006;
- else cameraYaw+=dx*.006;
- cameraPitch=Math.max(.02,Math.min(1.08,cameraPitch-dy*.005));
+ if(player.inCar)cameraTargetCarOffset+=dx*.006;
+  else cameraTargetYaw+=dx*.006;
+  cameraTargetPitch=Math.max(-.24,Math.min(1.52,cameraTargetPitch-dy*.005));
 });
 function releaseCamera(e){
  if(lookBackPointer===e.pointerId){cameraOffset=0;lookBackPointer=null;}
