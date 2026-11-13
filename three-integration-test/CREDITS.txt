@@ -1,0 +1,11 @@
+Human model: Grab3D, "Man Base Mesh" (rigged version)
+https://grab3d.com/models/characters/man-base-character/
+License recorded with source asset: CC0 1.0 Universal
+
+Vehicle model: Grab3D, "1990s Sedan"
+https://grab3d.com/models/vehicles/1990s-sedan/
+License recorded with source asset: CC0 1.0 Universal
+
+Rendering engine: Three.js 0.185.0 (MIT License)
+CDN: https://cdn.jsdelivr.net/npm/three@0.185.0/
+See ../real-3d-test/CREDITS.txt for the original asset notes.
