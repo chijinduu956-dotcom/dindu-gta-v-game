@@ -13,16 +13,17 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;col
 .brand{background:#101820dd;border:1px solid #64747b;border-radius:9px;padding:8px 11px;min-width:130px;box-shadow:0 3px 12px #0007}
 .brand b{font-size:15px;letter-spacing:1px;color:#fff}
 .brand small{display:block;font-size:8px;color:#c6a66b;letter-spacing:2px;margin-top:3px}
-.stats{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.stats{position:absolute;left:0;top:206px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;max-width:118px}
 .stat{background:#101820dd;border:1px solid #64747b;border-radius:7px;padding:7px 9px;font-size:10px;font-weight:bold;white-space:nowrap}
 .stat span{color:#e6c17c}
-#missionHud{position:absolute;top:78px;left:10px;max-width:65%;padding:9px 11px;border-left:3px solid #e8b85d;border-radius:4px;background:#101820d9;box-shadow:0 2px 10px #0005}
+#missionHud{position:absolute;top:222px;right:10px;left:auto;max-width:min(45%,220px);padding:9px 11px;border-left:3px solid #e8b85d;border-radius:4px;background:#101820d9;box-shadow:0 2px 10px #0005}
 #missionHud small{display:block;color:#e5bd71;font-size:9px;letter-spacing:1.5px;margin-bottom:4px}
 #missionTitle{font-size:13px;font-weight:bold}
 #missionBrief{font-size:10px;color:#c7d0d2;margin-top:4px;line-height:1.35}
-#minimapBox{position:absolute;right:10px;top:82px;width:112px;height:112px;border:2px solid #bdc4c2;border-radius:9px;background:#111e;padding:3px;box-shadow:0 2px 10px #0008}
-#minimap{width:100%;height:100%;display:block;border-radius:5px}
-#topButtons{position:absolute;right:10px;top:10px;display:flex;gap:5px;pointer-events:auto}
+#minimapBox{position:absolute;left:10px;top:82px;width:112px;height:112px;border:2px solid #bdc4c2;border-radius:50%;background:#111e;padding:3px;box-shadow:0 2px 10px #0008;overflow:hidden}
+#minimap{width:100%;height:100%;display:block;border-radius:50%}
+#topButtons{position:absolute;right:10px;top:82px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+#topButtons .smallBtn{min-width:82px;text-align:center}
 .smallBtn{border:1px solid #77868c;background:#101820e8;color:white;border-radius:7px;padding:8px 9px;font-size:9px;font-weight:bold;letter-spacing:.5px}
 #joystick{position:absolute;left:18px;bottom:max(23px,env(safe-area-inset-bottom));width:126px;height:126px;border-radius:50%;background:#18252c99;border:2px solid #b8c2c277;box-shadow:inset 0 0 18px #0008;pointer-events:auto;touch-action:none}
 #stick{position:absolute;left:35px;top:35px;width:52px;height:52px;border-radius:50%;background:linear-gradient(145deg,#aeb9bd,#34454d);border:2px solid #e0e5e4;box-shadow:0 4px 12px #0009}
@@ -59,7 +60,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;col
  .action{height:48px}
  #actions{width:145px}
  #missionHud{top:65px}
- #minimapBox{top:70px;width:90px;height:90px}
+ #minimapBox{left:10px;top:70px;width:90px;height:90px;border-radius:50%}
+ .stats{top:166px}
+ #missionHud{top:190px}
 }
 /* DINDU_CAR_CONTROLS_CSS */
 *{-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent}
@@ -250,10 +253,10 @@ let cash=Math.max(0,Number(saveData.cash)||1200);
 let xp=Math.max(0,Number(saveData.xp)||0);
 let completed=Math.max(0,Number(saveData.done)||0);
 
-let cameraYaw=Number(saveData.yaw)||0;let cameraOffset=0;let cameraDistance=5.2,cameraCarOffset=0;
+let cameraYaw=Number(saveData.yaw)||0;let cameraPitch=.34;let cameraOffset=0;let cameraDistance=5.2,cameraCarOffset=0;
 let running=false;
 let paused=true;
-let runHeld=false;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carSpeed=0;
+let runHeld=false;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carSpeed=0;let carWheelSpin=0;
 let stickX=0,stickY=0;
 let jumpPressed=false;
 let punchTimer=0;
@@ -267,7 +270,7 @@ let lastFrame=0;
 const obstacles=[];
 const staticData=[];
 const parkedCars=[
-  {x:4,z:0,yaw:Math.PI/2,color:[0.58,0.12,0.10]},
+  {x:3,z:0,yaw:Math.PI/2,color:[0.035,0.24,0.78],name:'Blue Lexus IS350'},
   {x:20,z:22,yaw:0,color:[0.10,0.26,0.42]},
   {x:-24,z:18,yaw:0,color:[0.55,0.48,0.30]},
   {x:55,z:-18,yaw:Math.PI/2,color:[0.18,0.36,0.27]}
@@ -357,9 +360,9 @@ function addBuilding(x,z,w,d,h,shade,id){
 function buildCity(){
   addBox(staticData,0,-.42,0,210,.8,210,color(64,76,75));
 
-  const asphalt=color(35,43,47);
-  const lane=color(178,169,137);
-  const sidewalk=color(105,111,109);
+  const asphalt=color(43,47,45);
+  const lane=color(202,183,135);
+  const sidewalk=color(128,122,108);
   for(let k=-2;k<=2;k++){
     const p=k*36;
     addBox(staticData,p,.02,0,11,.06,205,asphalt);
@@ -384,8 +387,8 @@ function buildCity(){
         const w=7.5+s*2.7,d=7.5+seeded(id*13+j)*3;
         const h=15+seeded(id*21+j)*36;
         const palette=[
-          color(80,88,89),color(91,94,91),color(70,82,87),
-          color(105,102,92),color(64,77,81),color(82,91,96)
+          color(128,103,84),color(148,126,101),color(105,112,104),
+          color(153,139,117),color(99,94,83),color(119,108,91)
         ];
         const col=palette[Math.floor(seeded(id*29+j)*palette.length)];
         addBuilding(cx+spots[j][0],cz+spots[j][1],w,d,h,col,id++);
@@ -438,7 +441,7 @@ precision mediump float;
 varying vec3 vColor;
 varying float vFog;
 void main(){
-  vec3 fog=vec3(0.38,0.46,0.48);
+  vec3 fog=vec3(0.49,0.55,0.55);
   gl_FragColor=vec4(mix(vColor,fog,vFog),1.0);
 }`;
 function compile(type,source){
@@ -520,45 +523,84 @@ function localPoint(x,z,yaw,dx,dz){
   const c=Math.cos(yaw),s=Math.sin(yaw);
   return [x+dx*c+dz*s,z-dx*s+dz*c];
 }
-function drawCar(out,x,z,yaw,body){
-  const glass=color(33,57,67),rubber=color(22,25,26),metal=color(93,99,99);
+function drawCar(out,x,z,yaw,body,spin=0){
+  const glass=color(25,48,59),rubber=color(19,21,22),metal=color(126,134,135);
+  const trim=color(28,31,32),lamp=color(235,224,183);
   addBox(out,x,.66,z,2.15,.58,4.1,body,yaw);
+  addBox(out,x,.88,z+1.28,1.96,.18,1.35,body,yaw);
+  addBox(out,x,.87,z-1.48,1.94,.18,1.0,body,yaw);
   addBox(out,x,1.13,z-.2,1.72,.82,2.05,glass,yaw);
-  addBox(out,x,1.56,z-.2,1.48,.13,1.8,color(81,105,111),yaw);
-  addBox(out,x,.42,z+2.05,2.12,.18,.18,metal,yaw);
-  addBox(out,x,.42,z-2.05,2.12,.18,.18,metal,yaw);
-  for(const dx of [-.96,.96])for(const dz of [-1.35,1.35]){
-    const p=localPoint(x,z,yaw,dx,dz);
-    addSphere(out,p[0],.43,p[1],.24,.43,.43,rubber,14,10);const hub=localPoint(x,z,yaw,dx+(dx>0?0.22:-0.22),dz);addSphere(out,hub[0],.43,hub[1],.075,.23,.23,metal,12,8);
-  }
-  const front=localPoint(x,z,yaw,0,2.07);
-  addBox(out,front[0],.72,front[1],.6,.16,.07,color(208,194,151),yaw);
-}
-
-function drawPerson(out,x,z,yaw,walk=0,punch=false){
-  const torso=color(38,83,94),shirt=color(196,154,82),pants=color(45,51,58);
-  const skin=color(164,126,99),shoe=color(27,29,29);
-  const point=(dx,dz)=>localPoint(x,z,yaw,dx,dz);
-  const p1=point(0,0);
-  addBox(out,p1[0],1.15,p1[1],.7,.75,.42,torso,yaw);
-  addBox(out,p1[0],1.57,p1[1],.5,.12,.4,shirt,yaw);
-  addSphere(out,p1[0],1.83,p1[1],.22,.25,.22,skin,10,7);
-  addSphere(out,p1[0],1.99,p1[1],.22,.08,.22,color(34,34,32),10,5);
-  const stride=Math.sin(walk)*.25;
+  addBox(out,x,1.56,z-.2,1.48,.13,1.8,body,yaw);
+  const windshield=localPoint(x,z,yaw,0,.82);
+  addBox(out,windshield[0],1.18,windshield[1],1.43,.43,.09,glass,yaw);
+  const rearGlass=localPoint(x,z,yaw,0,-1.25);
+  addBox(out,rearGlass[0],1.18,rearGlass[1],1.34,.38,.09,glass,yaw);
   for(const side of [-1,1]){
-    const lp=point(side*.19,side===-1?stride:-stride);
-    addBox(out,lp[0],.47,lp[1],.27,.78,.3,pants,yaw);
-    const foot=point(side*.19,(side===-1?stride:-stride)+.12);
-    addBox(out,foot[0],.08,foot[1],.32,.16,.45,shoe,yaw);
-    let armForward=0;
-    if(punch&&side===1)armForward=.48;
-    const ap=point(side*.48,armForward+(side===-1?-stride:stride));
-    addBox(out,ap[0],1.14,ap[1],.23,.66,.25,shirt,yaw);
-    const hand=point(side*.48,armForward+(side===-1?-stride:stride)+.04);
-    addSphere(out,hand[0],.79,hand[1],.13,.13,.13,skin,8,6);
+    const sideWindow=localPoint(x,z,yaw,side*.875,-.18);
+    addBox(out,sideWindow[0],1.16,sideWindow[1],.085,.43,1.3,glass,yaw);
+    const mirror=localPoint(x,z,yaw,side*1.04,.58);
+    addBox(out,mirror[0],1.13,mirror[1],.19,.13,.2,body,yaw);
+    const lampPoint=localPoint(x,z,yaw,side*.67,2.075);
+    addBox(out,lampPoint[0],.79,lampPoint[1],.42,.17,.09,lamp,yaw);
+    const rearLamp=localPoint(x,z,yaw,side*.68,-2.075);
+    addBox(out,rearLamp[0],.78,rearLamp[1],.36,.16,.08,color(155,45,39),yaw);
+  }
+  const grille=localPoint(x,z,yaw,0,2.09);
+  addBox(out,grille[0],.68,grille[1],.78,.2,.09,trim,yaw);
+  const frontBumper=localPoint(x,z,yaw,0,2.12);
+  addBox(out,frontBumper[0],.43,frontBumper[1],2.12,.18,.16,metal,yaw);
+  const rearBumper=localPoint(x,z,yaw,0,-2.12);
+  addBox(out,rearBumper[0],.43,rearBumper[1],2.12,.18,.16,metal,yaw);
+  for(const side of [-1,1]){
+    for(const dz of [-1.35,1.35]){
+      const p=localPoint(x,z,yaw,side*1.02,dz);
+      addSphere(out,p[0],.43,p[1],.25,.42,.42,rubber,16,10);
+      const hx=p[0]+Math.cos(yaw)*side*.235;
+      const hz=p[1]-Math.sin(yaw)*side*.235;
+      addSphere(out,hx,.43,hz,.065,.22,.22,metal,12,8);
+      addSphere(out,hx,.43,hz,.035,.095,.095,trim,10,7);
+      for(let k=0;k<5;k++){
+        const a=k*Math.PI*2/5+spin;
+        addSphere(out,hx,.43+Math.cos(a)*.145,hz+Math.sin(a)*.145,.028,.032,.032,lamp,6,4);
+      }
+    }
   }
 }
-
+function drawPerson(out,x,z,yaw,walk=0,punch=false){
+  const torso=color(44,74,80),shirt=color(190,145,83),pants=color(46,49,53);
+  const skin=color(164,126,99),shoe=color(25,27,28),hair=color(35,31,28);
+  const point=(dx,dz)=>localPoint(x,z,yaw,dx,dz);
+  const stride=Math.sin(walk)*.19;
+  addBox(out,x,.91,z,.62,.42,.34,pants,yaw);
+  addBox(out,x,1.27,z,.66,.72,.37,torso,yaw);
+  addBox(out,x,1.42,z+.015,.68,.38,.385,shirt,yaw);
+  addBox(out,x,1.01,z+.015,.66,.1,.39,color(35,39,40),yaw);
+  addSphere(out,x,1.68,z,.12,.13,.12,skin,10,7);
+  addSphere(out,x,1.92,z,.225,.26,.22,skin,14,10);
+  addSphere(out,x,2.075,z-.015,.225,.105,.22,hair,12,7);
+  const nose=point(0,.205);
+  addSphere(out,nose[0],1.91,nose[1],.045,.055,.065,skin,8,6);
+  for(const side of [-1,1]){
+    const ear=point(side*.215,0);
+    addSphere(out,ear[0],1.92,ear[1],.055,.075,.045,skin,8,6);
+    const eye=point(side*.075,.183);
+    addSphere(out,eye[0],1.97,eye[1],.022,.026,.018,color(28,26,24),6,4);
+    const upper=point(side*.17,side===-1?stride:-stride);
+    addBox(out,upper[0],.67,upper[1],.255,.48,.27,pants,yaw);
+    const lower=point(side*.17,(side===-1?stride:-stride)*.45);
+    addBox(out,lower[0],.31,lower[1],.235,.36,.24,pants,yaw);
+    const foot=point(side*.18,(side===-1?stride:-stride)+.13);
+    addBox(out,foot[0],.085,foot[1],.31,.15,.43,shoe,yaw);
+    const armSwing=(side===-1?-stride:stride);
+    const armForward=punch&&side===1?.48:0;
+    const upperArm=point(side*.43,armForward+armSwing*.55);
+    addBox(out,upperArm[0],1.31,upperArm[1],.22,.43,.23,shirt,yaw);
+    const forearm=point(side*.47,armForward+armSwing);
+    addBox(out,forearm[0],1.02,forearm[1],.19,.36,.2,shirt,yaw);
+    const hand=point(side*.47,armForward+armSwing+.025);
+    addSphere(out,hand[0],.81,hand[1],.105,.11,.105,skin,8,6);
+  }
+}
 function currentMission(){
   return nextMission<=100?missions[nextMission-1]:null;
 }
@@ -582,10 +624,10 @@ function dynamicScene(time){
   const out=[];
   parkedCars.forEach((c,i)=>{
     if(player.inCar&&player.carIndex===i)return;
-    drawCar(out,c.x,c.z,c.yaw,c.color);
+    drawCar(out,c.x,c.z,c.yaw,c.color,0);
   });
   if(player.inCar){
-    drawCar(out,player.x,player.z,player.yaw,parkedCars[player.carIndex].color);
+    drawCar(out,player.x,player.z,player.yaw,parkedCars[player.carIndex].color,carWheelSpin);
   }else{
     const avatar=[];drawPerson(avatar,player.x,player.z,player.yaw,Math.hypot(stickX,stickY)>.08?time*.009:0,punchTimer>0);for(let i=0;i<avatar.length;i+=9){avatar[i]=player.x+(avatar[i]-player.x)*1.18;avatar[i+1]=avatar[i+1]*1.18+player.y;avatar[i+2]=player.z+(avatar[i+2]-player.z)*1.18;}out.push(...avatar);
   }
@@ -740,7 +782,7 @@ function pauseGame(){
 }
 function startGame(){
   closeOverlay('welcome');running=true;paused=false;
-  updateHud();showToast('WELCOME TO DINDU CITY');
+  updateHud();showToast('WELCOME TO DINDU CITY · Your blue Lexus IS350 is ready.');
 }
 
 function drawMini(ctx,w,h,large){
@@ -794,7 +836,7 @@ function render(time){
   lastFrame=time;
 
   if(running&&!paused){
-    if(player.inCar){if(dinduCarOsc&&dinduCarAudio)dinduCarOsc.frequency.setTargetAtTime(65+Math.abs(carSpeed)*12,dinduCarAudio.currentTime,.12);if(Math.abs(stickX)>.05&&Math.abs(carSpeed)>.1)player.yaw+=stickX*1.8*dt*(carSpeed<0?-1:1);if(carBrakeHeld)carSpeed*=Math.max(0,1-10*dt);else if(carAccelerateHeld)carSpeed=Math.min(15,carSpeed+8*dt);else if(carReverseHeld)carSpeed=Math.max(-6,carSpeed-7*dt);else carSpeed*=Math.max(0,1-1.2*dt);if(Math.abs(carSpeed)<.04)carSpeed=0;if(carSpeed!==0){const nx=player.x+Math.sin(player.yaw)*carSpeed*dt;const nz=player.z+Math.cos(player.yaw)*carSpeed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}else carSpeed=0}}else{const mag=Math.hypot(stickX,stickY);if(mag>.08){const camYaw=player.inCar?player.yaw:cameraYaw;const fx=Math.sin(camYaw),fz=Math.cos(camYaw);const rx=Math.cos(camYaw),rz=-Math.sin(camYaw);const forward=-stickY;const strafe=stickX;const mx=fx*forward+rx*strafe;const mz=fz*forward+rz*strafe;const len=Math.hypot(mx,mz)||1;const speed=(runHeld?8.2:3.7)*(speedTimer>0?1.55:1);const nx=player.x+(mx/len)*speed*dt;const nz=player.z+(mz/len)*speed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}player.yaw=Math.atan2(mx,mz)}}
+    if(player.inCar){if(dinduCarOsc&&dinduCarAudio)dinduCarOsc.frequency.setTargetAtTime(65+Math.abs(carSpeed)*12,dinduCarAudio.currentTime,.12);if(Math.abs(stickX)>.05&&Math.abs(carSpeed)>.1)player.yaw+=stickX*1.8*dt*(carSpeed<0?-1:1);if(carBrakeHeld)carSpeed*=Math.max(0,1-10*dt);else if(carAccelerateHeld)carSpeed=Math.min(15,carSpeed+8*dt);else if(carReverseHeld)carSpeed=Math.max(-6,carSpeed-7*dt);else carSpeed*=Math.max(0,1-1.2*dt);if(Math.abs(carSpeed)<.04)carSpeed=0;if(carSpeed!==0){carWheelSpin=(carWheelSpin+carSpeed*dt/.43)%(Math.PI*2);const nx=player.x+Math.sin(player.yaw)*carSpeed*dt;const nz=player.z+Math.cos(player.yaw)*carSpeed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}else carSpeed=0}}else{const mag=Math.hypot(stickX,stickY);if(mag>.08){const camYaw=player.inCar?player.yaw:cameraYaw;const fx=Math.sin(camYaw),fz=Math.cos(camYaw);const rx=Math.cos(camYaw),rz=-Math.sin(camYaw);const forward=-stickY;const strafe=stickX;const mx=fx*forward+rx*strafe;const mz=fz*forward+rz*strafe;const len=Math.hypot(mx,mz)||1;const speed=(runHeld?8.2:3.7)*(speedTimer>0?1.55:1);const nx=player.x+(mx/len)*speed*dt;const nz=player.z+(mz/len)*speed*dt;if(!isBlocked(nx,nz)){player.x=nx;player.z=nz}player.yaw=Math.atan2(mx,mz)}}
     if(!player.inCar){
       player.vy-=17*dt;
       player.y+=player.vy*dt;
@@ -815,14 +857,16 @@ function render(time){
   const camYaw=(player.inCar?player.yaw+cameraCarOffset:cameraYaw)+cameraOffset;
   const fx=Math.sin(camYaw),fz=Math.cos(camYaw);
   const target=[player.x,1.2+player.y,player.z];
-  const eye=[player.x-fx*cameraDistance,3.0+player.y+(cameraDistance-5.2)*.22,player.z-fz*cameraDistance];
+  const horizontalDistance=Math.cos(cameraPitch)*cameraDistance;
+  const verticalDistance=Math.sin(cameraPitch)*cameraDistance;
+  const eye=[player.x-fx*horizontalDistance,target[1]+verticalDistance,player.z-fz*horizontalDistance];
   const view=lookAt(eye,target,[0,1,0]);
   const proj=perspective(Math.PI/3,canvas.width/canvas.height,.1,240);
   const vp=multiply(proj,view);
 
   gl.enable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
-  gl.clearColor(.38,.47,.49,1);
+  gl.clearColor(.48,.55,.58,1);
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.useProgram(program);
   gl.uniformMatrix4fv(loc.vp,false,vp);
@@ -889,7 +933,7 @@ canvas.addEventListener('pointerdown',e=>{
 });
 canvas.addEventListener('pointermove',e=>{
  const p=cameraPointers.get(e.pointerId);if(!p)return;
- const dx=e.clientX-p.x;p.x=e.clientX;p.y=e.clientY;
+ const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
  if(cameraPointers.size>=2){
   cancelLookBackTimer();cameraOffset=0;lookBackPointer=null;
   if(cameraPinchStart){
@@ -902,6 +946,7 @@ canvas.addEventListener('pointermove',e=>{
  if(Math.hypot(e.clientX-p.startX,e.clientY-p.startY)>10)cancelLookBackTimer();
  if(player.inCar)cameraCarOffset+=dx*.006;
  else cameraYaw+=dx*.006;
+ cameraPitch=Math.max(.02,Math.min(1.08,cameraPitch-dy*.005));
 });
 function releaseCamera(e){
  if(lookBackPointer===e.pointerId){cameraOffset=0;lookBackPointer=null;}
