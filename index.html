@@ -365,7 +365,7 @@ function addBuilding(x,z,w,d,h,shade,id){
   const wall=shade;
   addBox(staticData,x,h/2,z,w,h,d,wall);
   addBox(staticData,x,h+.2,z,w+.5,.4,d+.5,color(48,57,61));
-  obstacles.push({minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2});
+  obstacles.push({minX:x-w/2,maxX:x+w/2,minZ:z-d/2,maxZ:z+d/2,minY:0,maxY:h+.45});
   stage2BuildingRecords.push({x,z,w,d,h,id});
 
   const floors=Math.floor((h-4)/3.1);
@@ -901,22 +901,31 @@ function smoothAngle(current,target,dt){
   const delta=Math.atan2(Math.sin(target-current),Math.cos(target-current));
   return current+delta*(1-Math.exp(-15*dt));
 }
-function cameraPointBlocked(x,z){
-  return obstacles.some(o=>x>o.minX-.32&&x<o.maxX+.32&&z>o.minZ-.32&&z<o.maxZ+.32);
+/* DINDU_STAGE4_CHARACTER_NPC_CAR_CAMERA: 3D camera obstruction protection */
+function cameraPointBlocked(x,y,z,radius=.30){
+  // Keep the camera above the road/ground plane at every point along its path.
+  if(!Number.isFinite(y)||y<.42) return true;
+  for(const o of obstacles){
+    const top=Number.isFinite(o.maxY)?o.maxY:60;
+    if(x>o.minX-radius&&x<o.maxX+radius&&z>o.minZ-radius&&z<o.maxZ+radius&&y>-.05&&y<top+radius) return true;
+  }
+  return false;
 }
 function safeCameraDistance(target,yaw,pitch,desired){
-  const horizontal=Math.cos(pitch);
-  for(let d=.75;d<=desired;d+=.24){
+  const horizontal=Math.cos(pitch),vertical=Math.sin(pitch);
+  const steps=Math.max(3,Math.ceil(desired/.14));
+  let lastClear=0;
+  // Sample the complete segment from the player focus to the camera, not just the endpoint.
+  for(let i=1;i<=steps;i++){
+    const d=desired*i/steps;
     const x=target[0]-Math.sin(yaw)*horizontal*d;
+    const y=target[1]+vertical*d;
     const z=target[2]-Math.cos(yaw)*horizontal*d;
-    if(cameraPointBlocked(x,z)) return Math.max(.85,d-.48);
+    if(cameraPointBlocked(x,y,z,.34)) return Math.max(.52,lastClear-.08);
+    lastClear=d;
   }
   return desired;
 }
-
-
-
-
 const vertexShader=`
 attribute vec3 aPosition;
 attribute vec3 aColor;
@@ -1020,125 +1029,194 @@ function localPoint(x,z,yaw,dx,dz){
   return [x+dx*c+dz*s,z-dx*s+dz*c];
 }
 function drawCar(out,x,z,yaw,body,spin=0){
-  const glass=color(25,48,59),rubber=color(19,21,22),metal=color(126,134,135);
-  const trim=color(28,31,32),lamp=color(235,224,183);
+  const glass=color(25,48,59),rubber=color(19,21,22),metal=color(150,160,164);
+  const trim=color(25,30,33),lamp=color(246,239,211);
+  const darkGlass=color(17,31,39),redLamp=color(194,45,42),amber=color(238,157,48);
+
+  // Continuous lower body, sculpted bonnet and roof preserve the original vehicle footprint.
   addBox(out,x,.66,z,2.15,.58,4.1,body,yaw);
   addBox(out,x,.88,z+1.28,1.96,.18,1.35,body,yaw);
   addBox(out,x,.87,z-1.48,1.94,.18,1.0,body,yaw);
   addBox(out,x,1.13,z-.2,1.72,.82,2.05,glass,yaw);
   addBox(out,x,1.56,z-.2,1.48,.13,1.8,body,yaw);
-  addBox(out,x,1.635,z-.18,.54,.025,.82,trim,yaw);
+  addBox(out,x,1.635,z-.18,.54,.025,.82,darkGlass,yaw);
   addBox(out,x,.365,z,1.82,.09,3.55,trim,yaw);
+  const hood=localPoint(x,z,yaw,0,1.28);
+  addBox(out,hood[0],.975,hood[1],1.62,.055,1.02,body,yaw);
+  for(const side of [-1,1]){
+    const crease=localPoint(x,z,yaw,side*.58,1.28);
+    addBox(out,crease[0],1.008,crease[1],.035,.018,.92,metal,yaw);
+    const sideWindow=localPoint(x,z,yaw,side*.875,-.18);
+    addBox(out,sideWindow[0],1.16,sideWindow[1],.085,.43,1.3,glass,yaw);
+    const skirt=localPoint(x,z,yaw,side*1.045,0);
+    addBox(out,skirt[0],.48,skirt[1],.13,.13,2.65,trim,yaw);
+    const mirror=localPoint(x,z,yaw,side*1.04,.58);
+    addBox(out,mirror[0],1.13,mirror[1],.22,.15,.24,body,yaw);
+    addBox(out,mirror[0],1.135,mirror[1]+.025,.13,.075,.035,metal,yaw);
+    // Door gaps, handles and window pillars create readable side panels.
+    for(const dz of [-.78,.68]){
+      const seam=localPoint(x,z,yaw,side*1.079,dz);
+      addBox(out,seam[0],.73,seam[1],.025,.38,.025,trim,yaw);
+    }
+    const handle=localPoint(x,z,yaw,side*1.085,.20);
+    addBox(out,handle[0],.91,handle[1],.045,.055,.25,metal,yaw);
+    const pillar=localPoint(x,z,yaw,side*.88,.55);
+    addBox(out,pillar[0],1.16,pillar[1],.065,.46,.08,trim,yaw);
+    const frontLamp=localPoint(x,z,yaw,side*.68,2.08);
+    addBox(out,frontLamp[0],.80,frontLamp[1],.48,.19,.10,lamp,yaw);
+    addBox(out,frontLamp[0],.80,frontLamp[1]+.055,.16,.09,.035,amber,yaw);
+    const rearLamp=localPoint(x,z,yaw,side*.69,-2.075);
+    addBox(out,rearLamp[0],.79,rearLamp[1],.40,.19,.095,redLamp,yaw);
+    addBox(out,rearLamp[0],.79,rearLamp[1]-.04,.11,.075,.035,amber,yaw);
+  }
+
   const windshield=localPoint(x,z,yaw,0,.82);
   addBox(out,windshield[0],1.18,windshield[1],1.43,.43,.09,glass,yaw);
   const rearGlass=localPoint(x,z,yaw,0,-1.25);
   addBox(out,rearGlass[0],1.18,rearGlass[1],1.34,.38,.09,glass,yaw);
+  // Windscreen framing and wipers remain visible at normal third-person distance.
   for(const side of [-1,1]){
-    const sideWindow=localPoint(x,z,yaw,side*.875,-.18);
-    addBox(out,sideWindow[0],1.16,sideWindow[1],.085,.43,1.3,glass,yaw);
-    const sideSkirt=localPoint(x,z,yaw,side*1.045,0);
-    addBox(out,sideSkirt[0],.48,sideSkirt[1],.13,.13,2.65,trim,yaw);
-    const handle=localPoint(x,z,yaw,side*1.075,.22);
-    addBox(out,handle[0],.91,handle[1],.075,.055,.28,metal,yaw);
-    const mirror=localPoint(x,z,yaw,side*1.04,.58);
-    addBox(out,mirror[0],1.13,mirror[1],.19,.13,.2,body,yaw);
-    const lampPoint=localPoint(x,z,yaw,side*.67,2.075);
-    addBox(out,lampPoint[0],.79,lampPoint[1],.42,.17,.09,lamp,yaw);
-    const rearLamp=localPoint(x,z,yaw,side*.68,-2.075);
-    addBox(out,rearLamp[0],.78,rearLamp[1],.36,.16,.08,color(155,45,39),yaw);
+    const frame=localPoint(x,z,yaw,side*.73,.79);
+    addBox(out,frame[0],1.17,frame[1],.045,.48,.10,trim,yaw);
+    const wiper=localPoint(x,z,yaw,side*.28,.91);
+    addBox(out,wiper[0],.99,wiper[1],.52,.025,.035,trim,yaw);
   }
+
   const grille=localPoint(x,z,yaw,0,2.09);
-  addBox(out,grille[0],.68,grille[1],.78,.2,.09,trim,yaw);
+  addBox(out,grille[0],.68,grille[1],.82,.23,.10,trim,yaw);
+  for(let slat=-3;slat<=3;slat++) addBox(out,grille[0]+slat*.105,.68,grille[1]+.055,.028,.16,.025,metal,yaw);
   const frontBumper=localPoint(x,z,yaw,0,2.12);
   addBox(out,frontBumper[0],.43,frontBumper[1],2.12,.18,.16,metal,yaw);
+  addBox(out,frontBumper[0],.32,frontBumper[1]+.055,1.40,.075,.06,trim,yaw);
   const rearBumper=localPoint(x,z,yaw,0,-2.12);
   addBox(out,rearBumper[0],.43,rearBumper[1],2.12,.18,.16,metal,yaw);
-  const hood=localPoint(x,z,yaw,0,1.28);
-  addBox(out,hood[0],.975,hood[1],1.62,.055,1.02,body,yaw);
+  addBox(out,rearBumper[0],.31,rearBumper[1]-.055,1.48,.075,.08,trim,yaw);
+  // Subtle roof rails and rear lip make the silhouette read more like a finished road car.
   for(const side of [-1,1]){
-    const seam=localPoint(x,z,yaw,side*1.078,-.22);
-    addBox(out,seam[0],.70,seam[1],.035,.36,1.52,trim,yaw);
-    const vent=localPoint(x,z,yaw,side*.48,1.72);
-    addBox(out,vent[0],.79,vent[1],.28,.045,.48,metal,yaw);
+    const rail=localPoint(x,z,yaw,side*.61,-.20);
+    addBox(out,rail[0],1.715,rail[1],.055,.035,1.45,metal,yaw);
+    const spoilerLeg=localPoint(x,z,yaw,side*.56,-1.68);
+    addBox(out,spoilerLeg[0],1.37,spoilerLeg[1],.07,.22,.07,trim,yaw);
   }
-  const frontPlate=localPoint(x,z,yaw,0,2.17);
-  addBox(out,frontPlate[0],.56,frontPlate[1],.54,.16,.055,color(205,211,209),yaw);
-  const rearPlate=localPoint(x,z,yaw,0,-2.17);
-  addBox(out,rearPlate[0],.56,rearPlate[1],.54,.16,.055,color(205,211,209),yaw);
-  const grillePoint=localPoint(x,z,yaw,0,2.145);
-  for(let slat=-2;slat<=2;slat++) addBox(out,grillePoint[0]+slat*.13,.69,grillePoint[1],.035,.13,.045,metal,yaw);
+  const spoiler=localPoint(x,z,yaw,0,-1.72);
+  addBox(out,spoiler[0],1.49,spoiler[1],1.68,.095,.30,body,yaw);
+  const frontPlate=localPoint(x,z,yaw,0,2.18);
+  addBox(out,frontPlate[0],.56,frontPlate[1],.54,.16,.055,color(220,224,219),yaw);
+  const rearPlate=localPoint(x,z,yaw,0,-2.18);
+  addBox(out,rearPlate[0],.56,rearPlate[1],.54,.16,.055,color(220,224,219),yaw);
 
+  // Four complete tyres with visible alloy faces, rotating spokes and lug details.
   for(const side of [-1,1]){
     for(const dz of [-1.35,1.35]){
       const p=localPoint(x,z,yaw,side*1.02,dz);
       addSphere(out,p[0],.43,p[1],.25,.42,.42,rubber,16,10);
       const hx=p[0]+Math.cos(yaw)*side*.235;
       const hz=p[1]-Math.sin(yaw)*side*.235;
-      addSphere(out,hx,.43,hz,.065,.22,.22,metal,12,8);
-      addSphere(out,hx,.43,hz,.035,.095,.095,trim,10,7);
+      addSphere(out,hx,.43,hz,.052,.205,.205,metal,12,8);
+      addSphere(out,hx+Math.cos(yaw)*side*.018,.43,hz,.063,.105,.105,trim,10,7);
       for(let k=0;k<5;k++){
         const a=k*Math.PI*2/5+spin;
-        addSphere(out,hx,.43+Math.cos(a)*.145,hz+Math.sin(a)*.145,.028,.032,.032,lamp,6,4);
+        addBox(out,hx,.43+Math.cos(a)*.135,hz+Math.sin(a)*.135,.035,.035,.14,color(190,199,201),yaw);
+      }
+      for(let k=0;k<5;k++){
+        const a=k*Math.PI*2/5+Math.PI/5;
+        addSphere(out,hx+Math.cos(yaw)*side*.055,.43+Math.cos(a)*.085,hz+Math.sin(a)*.085,.022,.022,.022,lamp,6,4);
       }
     }
   }
 }
-function drawPerson(out,x,z,yaw,walk=0,punch=false){
-  const downPose=arguments.length>6?arguments[6]:false;
+
+function drawPerson(out,x,z,yaw,walk=0,punch=false,downPose=false,variant=0){
+  const outfits=[
+    {shirt:color(39,91,125),jacket:color(30,56,73),pants:color(43,49,58),shoe:color(24,27,31),hair:color(35,29,25),skin:color(164,126,99)},
+    {shirt:color(176,91,58),jacket:color(113,61,48),pants:color(54,57,61),shoe:color(28,29,31),hair:color(29,25,22),skin:color(119,83,65)},
+    {shirt:color(72,123,84),jacket:color(48,86,63),pants:color(39,48,43),shoe:color(31,29,25),hair:color(49,37,27),skin:color(188,145,112)},
+    {shirt:color(139,117,164),jacket:color(81,69,109),pants:color(48,48,60),shoe:color(26,27,32),hair:color(26,25,28),skin:color(145,105,83)}
+  ];
+  const look=outfits[((variant%outfits.length)+outfits.length)%outfits.length];
+  const point=(dx,dz)=>localPoint(x,z,yaw,dx,dz);
+  const stride=Math.sin(walk)*.20;
+  const armSwing=Math.cos(walk)*.12;
+  const torso=look.jacket,shirt=look.shirt,pants=look.pants,shoe=look.shoe,skin=look.skin,hair=look.hair;
+
   if(downPose){
-    addBox(out,x,.32,z,.92,.24,.48,color(190,145,83),yaw);
-    addSphere(out,x, .48,z+.48,.19,.18,.19,color(164,126,99),12,8);
-    addBox(out,x,.28,z-.43,.30,.20,.48,color(46,49,53),yaw);
-    addBox(out,x+.36,.27,z-.30,.28,.17,.42,color(46,49,53),yaw);
+    addBox(out,x,.34,z,.72,.30,.55,shirt,yaw);
+    addSphere(out,x,.48,z+.53,.19,.18,.20,skin,12,8);
+    addSphere(out,x,.56,z+.53,.20,.08,.20,hair,10,6);
+    for(const side of [-1,1]){
+      addBox(out,x+side*.25,.24,z-.48,.26,.17,.58,pants,yaw);
+      addSphere(out,x+side*.43,.39,z+.05,.13,.13,.13,skin,8,6);
+      addBox(out,x+side*.43,.27,z+.30,.17,.12,.34,shirt,yaw);
+      addBox(out,x+side*.26,.20,z-.82,.27,.15,.35,shoe,yaw);
+    }
     return;
   }
 
-  const torso=color(44,74,80),shirt=color(190,145,83),pants=color(46,49,53);
-  const skin=color(164,126,99),shoe=color(25,27,28),hair=color(35,31,28);
-  const point=(dx,dz)=>localPoint(x,z,yaw,dx,dz);
-  const stride=Math.sin(walk)*.19;
-  addBox(out,x,.91,z,.62,.42,.34,pants,yaw);
-  addBox(out,x,1.27,z,.66,.72,.37,torso,yaw);
-  addBox(out,x,1.42,z+.015,.68,.38,.385,shirt,yaw);
-  addBox(out,x,1.01,z+.015,.66,.1,.39,color(35,39,40),yaw);
-  addSphere(out,x,1.35,z,.375,.30,.235,shirt,14,9);
-  addSphere(out,x,1.09,z,.30,.23,.205,torso,12,8);
-  addSphere(out,x,1.72,z,.115,.14,.12,skin,10,7);
-  addBox(out,x,1.57,z+.205,.36,.10,.055,color(224,205,169),yaw);
-  addBox(out,x,.96,z+.205,.43,.075,.055,color(190,164,106),yaw);
-  addBox(out,x,.97,z+.245,.10,.10,.045,color(219,192,123),yaw);
+  // Waist, hips and layered torso give the character a less block-like silhouette.
+  addBox(out,x,.91,z,.59,.38,.36,pants,yaw);
+  addSphere(out,x,1.12,z,.31,.22,.22,torso,12,8);
+  addBox(out,x,1.29,z,.67,.67,.40,torso,yaw);
+  addSphere(out,x,1.43,z,.36,.30,.235,shirt,14,9);
+  addBox(out,x,1.57,z+.205,.36,.105,.055,shirt,yaw);
+  addBox(out,x,1.02,z+.22,.43,.075,.055,color(192,164,108),yaw);
+  addBox(out,x,1.02,z+.255,.10,.10,.045,color(225,193,119),yaw);
+  // Neck and head with ears, brows, eyes, nose, hairline and hairstyle variation.
+  addSphere(out,x,1.70,z,.12,.15,.12,skin,12,8);
+  addSphere(out,x,1.96,z,.225,.275,.215,skin,16,11);
+  addSphere(out,x,2.115,z-.035,.235,.12,.225,hair,14,8);
+  if(variant%2===1){
+    addSphere(out,x-.10,2.16,z-.045,.12,.095,.16,hair,10,7);
+    addSphere(out,x+.10,2.16,z-.045,.12,.095,.16,hair,10,7);
+  }else{
+    addBox(out,x,2.13,z-.17,.31,.13,.18,hair,yaw);
+  }
+  const nose=point(0,.205);
+  addSphere(out,nose[0],1.95,nose[1],.045,.06,.065,skin,8,6);
+  addBox(out,x,1.84,z+.206,.09,.025,.025,color(91,55,48),yaw);
   for(const side of [-1,1]){
-    addBox(out,x+side*.205,1.13,z+.205,.16,.25,.035,color(52,82,82),yaw);
-    addBox(out,x+side*.09,1.83,z+.205,.09,.025,.025,hair,yaw);
+    const ear=point(side*.218,0);
+    addSphere(out,ear[0],1.96,ear[1],.052,.075,.045,skin,8,6);
+    const eye=point(side*.078,.183);
+    addSphere(out,eye[0],2.015,eye[1],.025,.025,.018,color(27,25,23),7,5);
+    const brow=point(side*.078,.198);
+    addBox(out,brow[0],2.065,brow[1],.075,.025,.025,hair,yaw);
+    const pocket=point(side*.205,-.005);
+    addBox(out,pocket[0],1.36,pocket[1],.16,.20,.035,shirt,yaw);
   }
 
-  addSphere(out,x,1.68,z,.12,.13,.12,skin,10,7);
-  addSphere(out,x,1.92,z,.225,.26,.22,skin,14,10);
-  addSphere(out,x,2.075,z-.015,.225,.105,.22,hair,12,7);
-  const nose=point(0,.205);
-  addSphere(out,nose[0],1.91,nose[1],.045,.055,.065,skin,8,6);
+  // Shoulder caps, elbows, forearms, hands, knees and shoes are separate joints.
   for(const side of [-1,1]){
-    const ear=point(side*.215,0);
-    addSphere(out,ear[0],1.92,ear[1],.055,.075,.045,skin,8,6);
-    const eye=point(side*.075,.183);
-    addSphere(out,eye[0],1.97,eye[1],.022,.026,.018,color(28,26,24),6,4);
-    const upper=point(side*.17,side===-1?stride:-stride);
-    addBox(out,upper[0],.67,upper[1],.255,.48,.27,pants,yaw);
-    const lower=point(side*.17,(side===-1?stride:-stride)*.45);
-    addBox(out,lower[0],.31,lower[1],.235,.36,.24,pants,yaw);
-    const foot=point(side*.18,(side===-1?stride:-stride)+.13);
-    addBox(out,foot[0],.085,foot[1],.31,.15,.43,shoe,yaw);
-    const armSwing=(side===-1?-stride:stride);
-    const armForward=punch&&side===1?.48:0;
-    const upperArm=point(side*.43,armForward+armSwing*.55);
-    addSphere(out,upperArm[0],1.40,upperArm[1],.145,.17,.145,shirt,9,7);
-    addBox(out,upperArm[0],1.31,upperArm[1],.22,.43,.23,shirt,yaw);
-    const forearm=point(side*.47,armForward+armSwing);
-    addBox(out,forearm[0],1.02,forearm[1],.19,.36,.2,shirt,yaw);
-    const hand=point(side*.47,armForward+armSwing+.025);
-    addSphere(out,hand[0],.81,hand[1],.105,.11,.105,skin,8,6);
+    const legSwing=(side===-1?stride:-stride);
+    const hip=point(side*.17,legSwing*.25);
+    addSphere(out,hip[0],.78,hip[1],.17,.20,.17,pants,10,7);
+    const thigh=point(side*.17,legSwing);
+    addBox(out,thigh[0],.65,thigh[1],.27,.43,.29,pants,yaw);
+    addSphere(out,thigh[0],.43,thigh[1],.14,.14,.14,pants,9,6);
+    const shin=point(side*.17,legSwing*.38);
+    addBox(out,shin[0],.27,shin[1],.235,.34,.24,pants,yaw);
+    const foot=point(side*.18,legSwing+.13);
+    addBox(out,foot[0],.085,foot[1],.30,.15,.43,shoe,yaw);
+    addBox(out,foot[0],.045,foot[1]+.12,.29,.06,.20,color(57,59,60),yaw);
+
+    const shoulder=point(side*.39,0);
+    addSphere(out,shoulder[0],1.43,shoulder[1],.19,.20,.19,shirt,11,8);
+    const upperArm=point(side*.44,armSwing*.55+(punch&&side===1?.30:0));
+    addBox(out,upperArm[0],1.27,upperArm[1],.235,.39,.245,shirt,yaw);
+    const elbow=point(side*.47,armSwing+(punch&&side===1?.47:0));
+    addSphere(out,elbow[0],1.045,elbow[1],.125,.13,.125,shirt,9,6);
+    const forearm=point(side*.47,armSwing*1.1+(punch&&side===1?.68:0));
+    addBox(out,forearm[0],.91,forearm[1],.19,.31,.20,shirt,yaw);
+    const hand=point(side*.47,armSwing*1.12+(punch&&side===1?.82:0));
+    addSphere(out,hand[0],.735,hand[1],.105,.11,.105,skin,9,6);
+  }
+  // A few pedestrians carry a compact shoulder bag for a more varied city crowd.
+  if(variant%4===2){
+    const bag=point(-.43,-.20);
+    addBox(out,bag[0],1.16,bag[1],.22,.30,.13,color(77,63,48),yaw);
+    addBox(out,bag[0],1.31,bag[1]+.02,.12,.045,.15,color(153,127,83),yaw);
   }
 }
+
 function currentMission(){
   return nextMission<=100?missions[nextMission-1]:null;
 }
@@ -1169,11 +1247,11 @@ function dynamicScene(time){
   if(player.inCar){
     drawCar(out,player.x,player.z,player.yaw,parkedCars[player.carIndex].color,carWheelSpin);
   }else{
-    const avatar=[];drawPerson(avatar,player.x,player.z,player.yaw,Math.hypot(stickX,stickY)>.08?time*.009:0,punchTimer>0,playerDownTimer>0||playerHealth<=0);for(let i=0;i<avatar.length;i+=9){avatar[i]=player.x+(avatar[i]-player.x)*1.18;avatar[i+1]=avatar[i+1]*1.18+player.y;avatar[i+2]=player.z+(avatar[i+2]-player.z)*1.18;}out.push(...avatar);
+    const avatar=[];drawPerson(avatar,player.x,player.z,player.yaw,Math.hypot(stickX,stickY)>.08?time*.009:0,punchTimer>0,playerDownTimer>0||playerHealth<=0,4);for(let i=0;i<avatar.length;i+=9){avatar[i]=player.x+(avatar[i]-player.x)*1.18;avatar[i+1]=avatar[i+1]*1.18+player.y;avatar[i+2]=player.z+(avatar[i+2]-player.z)*1.18;}out.push(...avatar);
   }
 
   npcs.forEach(n=>{
-    drawPerson(out,n.x,n.z,n.yaw,n.walkPhase,false,n.state==='down');
+    drawPerson(out,n.x,n.z,n.yaw,n.walkPhase,false,n.state==='down',n.id);
     if(n.health<100||n.state==='down') drawNpcHealthBar(out,n);
   });
 
@@ -1434,7 +1512,8 @@ function render(time){
   const horizontalDistance=Math.cos(cameraPitch)*cameraDistance;
   const verticalDistance=Math.sin(cameraPitch)*cameraDistance;
   const wantedDistance=safeCameraDistance(target,camYaw,cameraPitch,cameraDistance);
-  cameraActualDistance+=(wantedDistance-cameraActualDistance)*(1-Math.exp(-18*dt));
+  if(wantedDistance<cameraActualDistance) cameraActualDistance=wantedDistance;
+   else cameraActualDistance+=(wantedDistance-cameraActualDistance)*(1-Math.exp(-4.2*dt));
   const safeHorizontal=Math.cos(cameraPitch)*cameraActualDistance;
   const safeVertical=Math.sin(cameraPitch)*cameraActualDistance;
   const eye=[player.x-fx*safeHorizontal,target[1]+safeVertical,player.z-fz*safeHorizontal];
