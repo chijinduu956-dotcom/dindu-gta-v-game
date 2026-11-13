@@ -1680,7 +1680,7 @@ window.addEventListener('resize',resize);
 resize();
 function updateStage3Camera(dt){
   cameraYaw=smoothAngle(cameraYaw,cameraTargetYaw,dt);
-  cameraTargetPitch=Math.max(-.24,Math.min(1.52,cameraTargetPitch));
+  cameraTargetPitch=Math.max(-1.15,Math.min(1.40,cameraTargetPitch));
   cameraPitch+=(cameraTargetPitch-cameraPitch)*(1-Math.exp(-15*dt));
   cameraCarOffset=smoothAngle(cameraCarOffset,cameraTargetCarOffset,dt);
 }
@@ -1846,7 +1846,8 @@ canvas.addEventListener('pointermove',e=>{
  if(Math.hypot(e.clientX-p.startX,e.clientY-p.startY)>10)cancelLookBackTimer();
  if(player.inCar)cameraTargetCarOffset+=dx*.006;
   else cameraTargetYaw+=dx*.006;
-  cameraTargetPitch=Math.max(-.24,Math.min(1.52,cameraTargetPitch-dy*.005));
+  // Inverted vertical orbit: swipe up lowers the camera; swipe down raises it.
+  cameraTargetPitch=Math.max(-1.15,Math.min(1.40,cameraTargetPitch+dy*.005));
 });
 function releaseCamera(e){
  if(lookBackPointer===e.pointerId){cameraOffset=0;lookBackPointer=null;}
@@ -2007,14 +2008,16 @@ showToast('Tap ENTER DINDU CITY to begin.');
     const playerGLTF=await loader.loadAsync('../real-3d-test/assets/player.glb');
     const carGLTF=await loader.loadAsync('../real-3d-test/assets/blue-sedan.glb');
 
-    const playerTemplate=SkeletonUtils.clone(playerGLTF.scene);
+    // Keep the imported player scene in the same form as the working standalone prototype.
+    const playerTemplate=playerGLTF.scene;
     fitModel(playerTemplate,1.78,null);
+    playerTemplate.updateMatrixWorld(true);
     const carTemplate=carGLTF.scene.clone(true);
     fitModel(carTemplate,null,4.7);
 
-    const makeHuman=()=>{
+    const makeHuman=(cloneModel=true)=>{
       const group=new THREE.Group();
-      const model=SkeletonUtils.clone(playerTemplate);
+      const model=cloneModel?SkeletonUtils.clone(playerTemplate):playerTemplate;
       model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
       group.add(model);
       scene.add(group);
@@ -2022,16 +2025,28 @@ showToast('Tap ENTER DINDU CITY to begin.');
       const clips=playerGLTF.animations||[];
       const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
       const actions={idle:find(/idle|stand/i),walk:find(/walk/i),run:find(/run/i),mixer,active:null};
-      if(!actions.idle)actions.idle=actions.walk||(clips[0]?mixer.clipAction(clips[0]):null);
+      // Do not use a walking animation as the idle pose. Hold the first frame
+      // until actual joystick input starts movement.
       const initial=actions.idle||actions.walk||actions.run;
-      if(initial){initial.play();actions.active=initial;}
+      if(initial){
+        initial.play();
+        actions.active=initial;
+        if(!actions.idle){initial.paused=true;initial.time=0;mixer.update(0);}
+      }
       return {group,actions};
     };
-    const switchAction=(actions,next)=>{
-      if(!next||next===actions.active)return;
-      if(actions.active)actions.active.fadeOut(.16);
-      next.reset().fadeIn(.16).play();
-      actions.active=next;
+    const switchAction=(actions,next,freeze=false)=>{
+      if(!next){
+        if(actions.active){actions.active.paused=true;actions.active.time=0;}
+        return;
+      }
+      if(next!==actions.active){
+        if(actions.active)actions.active.fadeOut(.12);
+        next.reset().fadeIn(.12).play();
+        actions.active=next;
+      }
+      next.paused=!!freeze;
+      if(freeze)next.time=0;
     };
     const makeCar=(tint)=>{
       const group=new THREE.Group();
@@ -2050,8 +2065,8 @@ showToast('Tap ENTER DINDU CITY to begin.');
       return group;
     };
 
-    const playerActor=makeHuman();
-    const npcActors=link.npcs.map(()=>makeHuman());
+    const playerActor=makeHuman(false);
+    const npcActors=link.npcs.map(()=>makeHuman(true));
     const parkedActors=link.parkedCars.map((car,i)=>makeCar(i===0?null:car.color));
     const trafficActors=link.trafficCars.map(car=>makeCar(car.color));
     const activeCar=makeCar(null);
@@ -2076,8 +2091,8 @@ showToast('Tap ENTER DINDU CITY to begin.');
       playerActor.group.visible=!p.inCar;
       playerActor.group.position.set(p.x,p.y,p.z);
       playerActor.group.rotation.set(a.playerDown?Math.PI/2:0,p.yaw,0);
-      const playerAction=a.moving?(a.running?playerActor.actions.run:playerActor.actions.walk):(playerActor.actions.idle||playerActor.actions.walk);
-      switchAction(playerActor.actions,playerAction);
+      const playerAction=a.moving?(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):playerActor.actions.idle;
+      switchAction(playerActor.actions,playerAction,!a.moving&&!playerActor.actions.idle);
       playerActor.actions.mixer.update(dt);
 
       link.npcs.forEach((npc,i)=>{
@@ -2085,7 +2100,9 @@ showToast('Tap ENTER DINDU CITY to begin.');
         actor.group.position.set(npc.x,0,npc.z);
         actor.group.rotation.set(npc.state==='down'?Math.PI/2:0,npc.yaw||0,0);
         actor.group.visible=dist2(p.x,p.z,npc.x,npc.z)<95*95;
-        switchAction(actor.actions,npc.state==='walking'?(actor.actions.walk||actor.actions.idle):(actor.actions.idle||actor.actions.walk));
+        const npcMoving=npc.state==='walking';
+        const npcAction=npcMoving?(actor.actions.walk||actor.actions.run||actor.actions.idle):actor.actions.idle;
+        switchAction(actor.actions,npcAction,!npcMoving&&!actor.actions.idle);
         actor.actions.mixer.update(dt);
       });
 
