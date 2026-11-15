@@ -2096,13 +2096,17 @@ showToast('Tap ENTER DINDU CITY to begin.');
       root.position.x-=center.x;
       root.position.z-=center.z;
       root.position.y-=fitted.min.y;
+      root.updateMatrixWorld(true);
+      const grounded=new THREE.Box3().setFromObject(root);
+      const finalSize=grounded.getSize(new THREE.Vector3());
+      return {width:finalSize.x,height:finalSize.y,depth:finalSize.z,bottom:grounded.min.y};
     };
     const playerGLTF=await loader.loadAsync('../real-3d-test/assets/player.glb');
     const carGLTF=await loader.loadAsync('../real-3d-test/assets/blue-sedan.glb');
 
     // Keep the imported player scene in the same form as the working standalone prototype.
     const playerTemplate=playerGLTF.scene;
-    fitModel(playerTemplate,1.78,null);
+    const playerFit=fitModel(playerTemplate,1.78,null);
     playerTemplate.updateMatrixWorld(true);
     const carTemplate=carGLTF.scene.clone(true);
     fitModel(carTemplate,null,4.7);
@@ -2111,9 +2115,18 @@ showToast('Tap ENTER DINDU CITY to begin.');
       const group=new THREE.Group();
       const model=cloneModel?SkeletonUtils.clone(playerTemplate):playerTemplate;
       model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-      group.add(model);
-      scene.add(group);
-      const mixer=new THREE.AnimationMixer(model);
+       group.add(model);
+       scene.add(group);
+       const shadow=new THREE.Mesh(
+         new THREE.CircleGeometry(1,20),
+         new THREE.MeshBasicMaterial({color:0x080d12,transparent:true,opacity:.21,depthWrite:false})
+       );
+       shadow.rotation.x=-Math.PI/2;
+       shadow.position.y=.014;
+       shadow.scale.set(.26,.42,1);
+       shadow.renderOrder=-1;
+       scene.add(shadow);
+       const mixer=new THREE.AnimationMixer(model);
       const clips=playerGLTF.animations||[];
       const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
       const actions={idle:find(/idle|stand/i),walk:find(/walk/i),run:find(/run/i),jump:find(/jump/i),punch:find(/punch|attack|fight/i),mixer,active:null};
@@ -2125,7 +2138,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       });
       const initial=actions.idle||actions.walk||actions.run;
       if(initial){initial.play();actions.active=initial;if(!actions.idle){initial.paused=true;initial.time=0;mixer.update(0);}}
-      return {group,actions,breathBones,armBones};
+      return {group,shadow,actions,breathBones,armBones};
     };
     const switchAction=(actions,next,freeze=false)=>{
       if(!next){
@@ -2216,7 +2229,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
         entry.bone.rotation.x=entry.x+(punching?swing*(entry.left?-.85:.85):0);
         entry.bone.rotation.z=entry.z+(punching?swing*(entry.left ? .45 : -.45):0);
       }
-      actor.group.position.y += !moving ? Math.sin(t*2.1)*.009 : 0;
+      // Keep the character root fixed to the ground; breathing stays in the upper-body bones.
       actor.group.scale.y=sneaking ? .93 : 1;
     }
     function updateDoor(actor,open,dt){
@@ -2227,8 +2240,13 @@ showToast('Tap ENTER DINDU CITY to begin.');
       const p=link.player,a=link.animationState,t=performance.now()*.001;
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
-      playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y+(a.sneaking?-.07:0),p.z);
-      playerActor.group.rotation.set(a.playerDown?Math.PI/2:0,p.yaw,0);
+       playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y+(a.sneaking?-.07:0),p.z);
+       playerActor.group.rotation.set(a.playerDown?Math.PI/2:0,p.yaw,0);
+       playerActor.shadow.visible=!p.inCar;
+       playerActor.shadow.position.set(p.x,.014,p.z);
+       const playerShadowSize=a.jumping?1.15:1;
+       playerActor.shadow.scale.set(.26*playerShadowSize,.42*playerShadowSize,1);
+       playerActor.shadow.material.opacity=a.jumping?.13:.21;
       const playerAction=a.punching?(playerActor.actions.punch||playerActor.actions.idle):
         a.vehicleEntering?(playerActor.actions.walk||playerActor.actions.idle):
         a.jumping?(playerActor.actions.jump||playerActor.actions.idle):
@@ -2240,8 +2258,12 @@ showToast('Tap ENTER DINDU CITY to begin.');
         if(!npcActors[i])npcActors[i]=makeHuman(true);
         const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
         actor.group.rotation.set(npc.state==='down'?Math.PI/2:0,npc.yaw||0,0);
-        actor.group.visible=dist2(p.x,p.z,npc.x,npc.z)<105*105;
-        const npcMoving=npc.state==='walking'||npc.state==='combat';
+         actor.group.visible=dist2(p.x,p.z,npc.x,npc.z)<105*105;
+         actor.shadow.visible=actor.group.visible;
+         actor.shadow.position.set(npc.x,.014,npc.z);
+         const npcDown=npc.state==='down';
+         actor.shadow.scale.set(npcDown?.35:.26,npcDown?.56:.42,1);
+         const npcMoving=npc.state==='walking'||npc.state==='combat';
         const npcAction=npc.punchTimer>0?(actor.actions.punch||actor.actions.idle):
           npcMoving?(actor.actions.walk||actor.actions.run||actor.actions.idle):actor.actions.idle;
         switchAction(actor.actions,npcAction,false);actor.actions.mixer.update(dt);
@@ -2274,7 +2296,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
       renderer.setSize(innerWidth,innerHeight,false);
     });
-    status.textContent='REAL 3D MODELS ACTIVE';
+     status.textContent=`REAL 3D MODELS ACTIVE · HUMAN ${playerFit.height.toFixed(2)}M · GROUND ${Math.abs(playerFit.bottom)<.01?'OK':playerFit.bottom.toFixed(3)+'M'}`;
     window.__DINDU3D_RENDERER__={renderer,scene,camera,player:playerActor.group,cars:parkedActors};
     frame();
   }catch(error){
