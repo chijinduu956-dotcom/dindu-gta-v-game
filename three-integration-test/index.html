@@ -407,7 +407,9 @@ let npcPunchCooldown=0;
 let playerPunchHits=0,playerPunchWindow=0,jumpBoostTimer=0,sneakMode=false,joyTapAt=0,lastRunTap=0;
 let pendingVehicleEntry=null,vehicleDoorAction=null,wantedTimer=0;
 function makeSidewalkRoute(bx,bz){
- const x0=bx*36+6.5,x1=(bx+1)*36-6.5,z0=bz*36+6.5,z1=(bz+1)*36-6.5;
+ // Keep pedestrians on the sidewalk but clear of the junction signal posts and lamp shafts.
+ const offset=6.9;
+ const x0=bx*36+offset,x1=(bx+1)*36-offset,z0=bz*36+offset,z1=(bz+1)*36-offset;
  return [[x0,z0],[x0,z1],[x1,z1],[x1,z0]];
 }
 const pedestrianCells=[[-2,-1],[-1,0],[0,1],[1,-2]];
@@ -431,6 +433,11 @@ for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++) {
 
 
 const obstacles=[];
+// These bounds are shared by player/NPC collision and the transparent Three.js depth blockers.
+function addSolidWorldProp(x,z,width,depth,maxY=4.35){
+ const halfW=width/2,halfD=depth/2;
+ obstacles.push({minX:x-halfW,maxX:x+halfW,minZ:z-halfD,maxZ:z+halfD,minY:0,maxY});
+}
 const staticData=[];
 const stage2BuildingRecords=[];
 const parkedCars=[
@@ -624,6 +631,8 @@ function buildStage2CityDetails(){
       addBox(staticData,p+6.60,4.02,t,.34,.18,.42,warmLamp);
       addBox(staticData,t,4.12,p+7.08,.13,.12,.98,steel);
       addBox(staticData,t,4.02,p+6.60,.42,.18,.34,warmLamp);
+      addSolidWorldProp(p+7.6,t,.22,.22,4.35);
+      addSolidWorldProp(t,p+7.6,.22,.22,4.35);
     }
   }
 
@@ -712,6 +721,7 @@ function buildStage2VisibilityFix(){
     for(const sx of [-1,1]) for(const sz of [-1,1]){
       const x=cx+sx*6.25,z=cz+sz*6.25;
       addBox(staticData,x,1.85,z,.16,3.7,.16,darkMetal);
+      addSolidWorldProp(x,z,.22,.22,4.2);
       addBox(staticData,x,3.48,z,.48,1.05,.38,signalHousing);
       addSphere(staticData,x,3.78,z+.205,.135,.135,.075,color(76,34,33),10,7);
       addSphere(staticData,x,3.48,z+.205,.135,.135,.075,color(77,60,34),10,7);
