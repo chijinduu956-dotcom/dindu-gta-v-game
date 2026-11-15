@@ -2136,6 +2136,11 @@ showToast('Tap ENTER DINDU CITY to begin.');
        shadow.scale.set(.26,.42,1);
        shadow.renderOrder=-1;
        scene.add(shadow);
+       // Save the imported rig's neutral standing pose before any walk/run clip is applied.
+       const restPose=[];
+       model.traverse(o=>{
+         if(o.isBone)restPose.push({bone:o,position:o.position.clone(),quaternion:o.quaternion.clone(),scale:o.scale.clone()});
+       });
        const mixer=new THREE.AnimationMixer(model);
       const clips=playerGLTF.animations||[];
       const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
@@ -2146,13 +2151,22 @@ showToast('Tap ENTER DINDU CITY to begin.');
         if(/spine|chest|neck/i.test(o.name))breathBones.push({bone:o,x:o.rotation.x,z:o.rotation.z});
         if(/upperarm|arm|shoulder/i.test(o.name))armBones.push({bone:o,x:o.rotation.x,z:o.rotation.z,left:/left|_l\b/i.test(o.name)});
       });
-      const initial=actions.idle||actions.walk||actions.run;
-      if(initial){initial.play();actions.active=initial;if(!actions.idle){initial.paused=true;initial.time=0;mixer.update(0);}}
-      return {group,shadow,actions,breathBones,armBones};
+      // Use a true idle clip only when the asset supplies one. This model currently has
+      // walk/run clips only, so leave it in its neutral rig pose while standing.
+      const initial=actions.idle;
+      if(initial){initial.play();actions.active=initial;}
+      return {group,shadow,actions,breathBones,armBones,restPose};
     };
-    const switchAction=(actions,next,freeze=false)=>{
+    const switchAction=(actions,next,freeze=false,restPose=null)=>{
       if(!next){
-        if(actions.active){actions.active.paused=true;actions.active.time=0;}
+        if(actions.active){actions.mixer.stopAllAction();actions.active=null;}
+        if(restPose){
+          for(const pose of restPose){
+            pose.bone.position.copy(pose.position);
+            pose.bone.quaternion.copy(pose.quaternion);
+            pose.bone.scale.copy(pose.scale);
+          }
+        }
         return;
       }
       if(next!==actions.active){
@@ -2262,7 +2276,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
         a.jumping?(playerActor.actions.jump||playerActor.actions.idle):
         a.moving?(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):
         playerActor.actions.idle;
-      switchAction(playerActor.actions,playerAction,false);playerActor.actions.mixer.update(dt);
+      switchAction(playerActor.actions,playerAction,false,playerActor.restPose);playerActor.actions.mixer.update(dt);
       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering,a.punching,a.punchTime,a.sneaking,t);
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
@@ -2276,7 +2290,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
          const npcMoving=npc.state==='walking'||npc.state==='combat';
         const npcAction=npc.punchTimer>0?(actor.actions.punch||actor.actions.idle):
           npcMoving?(actor.actions.walk||actor.actions.run||actor.actions.idle):actor.actions.idle;
-        switchAction(actor.actions,npcAction,false);actor.actions.mixer.update(dt);
+        switchAction(actor.actions,npcAction,false,actor.restPose);actor.actions.mixer.update(dt);
         applyHumanMotion(actor,npcMoving,npc.punchTimer>0,npc.punchTimer,false,t);
       });
       link.parkedCars.forEach((car,i)=>{
