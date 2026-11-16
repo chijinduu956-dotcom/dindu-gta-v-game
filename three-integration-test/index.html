@@ -194,6 +194,20 @@ body.car-mode #actions{width:146px;right:9px}
 #dindu3d-overlay{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1;pointer-events:none}
 #dindu3d-status{position:fixed;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:6;padding:7px 10px;border:1px solid #ffffff3b;border-radius:10px;background:#0b1520d9;color:#e4edf3;font:700 10px Arial,sans-serif;letter-spacing:.4px;pointer-events:none;box-shadow:0 3px 12px #0008}
 #dindu3d-status.error{color:#ffc2b9;border-color:#ff8b7d}
+
+/* DINDU VEHICLE INTERACTION SYSTEM V1 */
+#vehiclePanel{position:fixed;z-index:27;left:50%;bottom:max(132px,calc(env(safe-area-inset-bottom) + 132px));transform:translateX(-50%);width:min(360px,calc(100vw - 24px));padding:12px;border:1px solid #aab9c7;border-radius:15px;background:linear-gradient(150deg,#182631f5,#080f17f5);box-shadow:0 12px 36px #000b;color:#fff;pointer-events:auto}
+#vehiclePanel.hidden{display:none!important}
+#vehiclePanel .vehicleHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+#vehiclePanel .vehicleHead strong{font-size:12px;letter-spacing:1.1px}
+#vehiclePanel .vehicleHead small{display:block;margin-top:3px;color:#a8b9c7;font-size:10px}
+#vehicleClose{width:30px;height:30px;border:1px solid #8294a3;border-radius:9px;background:#243744;color:#fff;font-size:18px;font-weight:900}
+#vehicleChoices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#vehicleChoices button{min-height:43px;border:1px solid #637989;border-radius:10px;background:linear-gradient(145deg,#344c5d,#15232d);color:#fff;font-size:11px;font-weight:900;letter-spacing:.45px}
+#vehicleChoices button:active,#vehicleClose:active{filter:brightness(1.35);transform:scale(.98)}
+#carControls.passenger-mode #carAccelerate,#carControls.passenger-mode #carBrake,#carControls.passenger-mode #carReverse{display:none!important}
+#carControls.passenger-mode #carExit{grid-column:1/-1}
+@media(max-width:480px){#vehiclePanel{bottom:max(118px,calc(env(safe-area-inset-bottom) + 118px));width:calc(100vw - 20px);}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
@@ -256,6 +270,10 @@ body.car-mode #actions{width:146px;right:9px}
   <div id="prompt"></div>
 </div>
 
+<div id="vehiclePanel" class="hidden" role="dialog" aria-label="Vehicle interaction menu">
+  <div class="vehicleHead"><div><strong>VEHICLE OPTIONS</strong><small id="vehiclePanelName">Nearby vehicle</small></div><button id="vehicleClose" type="button" aria-label="Close vehicle menu">×</button></div>
+  <div id="vehicleChoices"><button id="vehicleDrive" type="button">DRIVE</button><button id="vehiclePassenger" type="button">PASSENGER</button><button id="vehicleBonnet" type="button">OPEN BONNET</button><button id="vehicleTrunk" type="button">OPEN TRUNK</button></div>
+</div>
 <div id="launcher" class="overlay launchOverlay"><button type="button" id="openHtmlBtn" class="openHtmlBtn" aria-label="PLAY DINDU GTA V" title="PLAY"></button></div>
 <div id="welcome" class="overlay hidden">
   <div class="panel">
@@ -405,7 +423,7 @@ let playerHurtCooldown=0;
 const hospitalSpawn={x:-78,z:9};
 let npcPunchCooldown=0;
 let playerPunchHits=0,playerPunchWindow=0,jumpBoostTimer=0,sneakMode=false,joyTapAt=0,lastRunTap=0;
-let pendingVehicleEntry=null,vehicleDoorAction=null,wantedTimer=0;
+let pendingVehicleEntry=null,vehicleDoorAction=null,wantedTimer=0;let vehicleMenuState=null;
 function makeSidewalkRoute(bx,bz){
  // Keep pedestrians on the sidewalk but clear of the junction signal posts and lamp shafts.
  const offset=6.9;
@@ -1560,63 +1578,53 @@ function finishMission(){
   }
 }
 
-function beginVehicleEntry(kind,index){
- if(pendingVehicleEntry||player.inCar)return;
- const car=kind==='traffic'?trafficCars[index]:parkedCars[index];if(!car)return;
+
+function selectedVehicleMenuCar(){if(!vehicleMenuState)return null;const s=vehicleMenuState;return s.kind==='traffic'?trafficCars[s.index]:parkedCars[s.index];}
+function refreshVehicleMenu(){const car=selectedVehicleMenuCar();if(!car)return;document.getElementById('vehiclePanelName').textContent=car.name||'DINDU CITY VEHICLE';document.getElementById('vehicleBonnet').textContent=car.bonnetOpen?'CLOSE BONNET':'OPEN BONNET';document.getElementById('vehicleTrunk').textContent=car.trunkOpen?'CLOSE TRUNK':'OPEN TRUNK';}
+function openVehicleMenu(kind,index){const car=kind==='traffic'?trafficCars[index]:parkedCars[index];if(!car)return;vehicleMenuState={kind,index};document.getElementById('vehiclePanel').classList.remove('hidden');refreshVehicleMenu();}
+function closeVehicleMenu(){vehicleMenuState=null;const panel=document.getElementById('vehiclePanel');if(panel)panel.classList.add('hidden');}
+function vehicleMenuAction(action){
+ const s=vehicleMenuState,car=selectedVehicleMenuCar();if(!s||!car)return;
+ if(action==='drive'||action==='passenger'){closeVehicleMenu();beginVehicleEntry(s.kind,s.index,action==='passenger'?'passenger':'driver');return;}
+ if(action==='bonnet'){car.bonnetOpen=!car.bonnetOpen;showToast(car.bonnetOpen?'BONNET OPEN · ENGINE BAY':'BONNET CLOSED');}
+ else if(action==='trunk'){car.trunkOpen=!car.trunkOpen;showToast(car.trunkOpen?'TRUNK OPEN · STORAGE COMPARTMENT':'TRUNK CLOSED');}
+ refreshVehicleMenu();
+}
+function beginVehicleEntry(kind,index,seat='driver'){
+ if(pendingVehicleEntry||player.inCar)return;const car=kind==='traffic'?trafficCars[index]:parkedCars[index];if(!car)return;
  if(kind==='traffic'){car.speed=0;car.stoppedForTheft=true;}
- vehicleDoorAction={type:kind,index,open:true,time:.95};
- pendingVehicleEntry={type:kind,index,elapsed:0,startX:player.x,startZ:player.z};
- stickX=stickY=0;runHeld=false;showToast('OPENING DRIVER DOOR…');
+ vehicleDoorAction={type:kind,index,seat,open:true,time:.95};pendingVehicleEntry={type:kind,index,seat,elapsed:0,startX:player.x,startZ:player.z};
+ closeVehicleMenu();stickX=stickY=0;runHeld=false;showToast(seat==='passenger'?'OPENING PASSENGER DOOR…':'OPENING DRIVER DOOR…');
 }
 function updateVehicleEntry(dt){
- if(vehicleDoorAction&&!pendingVehicleEntry){vehicleDoorAction.time-=dt;if(vehicleDoorAction.time<=0)vehicleDoorAction=null;}
- if(!pendingVehicleEntry)return;
- const e=pendingVehicleEntry,car=e.type==='traffic'?trafficCars[e.index]:parkedCars[e.index];
- if(!car){pendingVehicleEntry=null;vehicleDoorAction=null;return;}
- e.elapsed+=dt;const sideX=car.x+Math.cos(car.yaw)*1.35,sideZ=car.z-Math.sin(car.yaw)*1.35;
- const approach=Math.min(1,e.elapsed/.42);
- player.x=e.startX+(sideX-e.startX)*approach;player.z=e.startZ+(sideZ-e.startZ)*approach;
- player.yaw=Math.atan2(car.x-player.x,car.z-player.z);
- if(e.elapsed<.92)return;
+ if(vehicleDoorAction&&!pendingVehicleEntry){vehicleDoorAction.time-=dt;if(vehicleDoorAction.time<=0)vehicleDoorAction=null;}if(!pendingVehicleEntry)return;
+ const e=pendingVehicleEntry,car=e.type==='traffic'?trafficCars[e.index]:parkedCars[e.index];if(!car){pendingVehicleEntry=null;vehicleDoorAction=null;return;}
+ e.elapsed+=dt;const side=e.seat==='passenger'?1:-1,sideX=car.x+Math.cos(car.yaw)*side*1.35,sideZ=car.z-Math.sin(car.yaw)*side*1.35,approach=Math.min(1,e.elapsed/.48);
+ player.x=e.startX+(sideX-e.startX)*approach;player.z=e.startZ+(sideZ-e.startZ)*approach;player.yaw=Math.atan2(car.x-player.x,car.z-player.z);if(e.elapsed<.98)return;
  let carIndex=e.index;
  if(e.type==='traffic'){
-  const source=trafficCars[e.index];if(!source){pendingVehicleEntry=null;return;}
-  source.stolen=true;source.speed=0;source.stoppedForTheft=false;
-  parkedCars.push({x:source.x,z:source.z,yaw:source.yaw,color:source.color.slice(),name:'Stolen traffic vehicle',stolen:true,sourceTrafficId:source.id});
-  carIndex=parkedCars.length-1;
-  const ownerX=source.x+Math.cos(source.yaw)*2.2,ownerZ=source.z-Math.sin(source.yaw)*2.2;
-  const route=makeSidewalkRoute(Math.max(-2,Math.min(1,Math.round(ownerX/36))),Math.max(-2,Math.min(1,Math.round(ownerZ/36))));
-  npcs.push({id:Math.max(0,...npcs.map(n=>n.id))+1,x:ownerX,z:ownerZ,yaw:Math.atan2(player.x-ownerX,player.z-ownerZ),
-   health:100,state:'combat',stateTimer:0,respawnTimer:0,hurtCooldown:0,walkPhase:0,route,routeIndex:0,
-   attackCooldown:.5,combatTarget:{kind:'player'},punchTimer:0,owner:true,ownerTrafficId:source.id,ownerStolenIndex:carIndex});
+  const source=trafficCars[e.index];if(!source){pendingVehicleEntry=null;return;}source.stolen=true;source.speed=0;source.stoppedForTheft=false;
+  parkedCars.push({x:source.x,z:source.z,yaw:source.yaw,color:source.color.slice(),name:'Stolen traffic vehicle',stolen:true,sourceTrafficId:source.id,bonnetOpen:!!source.bonnetOpen,trunkOpen:!!source.trunkOpen});carIndex=parkedCars.length-1;
+  const ownerX=source.x+Math.cos(source.yaw)*2.2,ownerZ=source.z-Math.sin(source.yaw)*2.2,route=makeSidewalkRoute(Math.max(-2,Math.min(1,Math.round(ownerX/36))),Math.max(-2,Math.min(1,Math.round(ownerZ/36))));
+  npcs.push({id:Math.max(0,...npcs.map(n=>n.id))+1,x:ownerX,z:ownerZ,yaw:Math.atan2(player.x-ownerX,player.z-ownerZ),health:100,state:'combat',stateTimer:0,respawnTimer:0,hurtCooldown:0,walkPhase:0,route,routeIndex:0,attackCooldown:.5,combatTarget:{kind:'player'},punchTimer:0,owner:true,ownerTrafficId:source.id,ownerStolenIndex:carIndex});
   wantedTimer=60;showToast('CAR STOLEN · THE DRIVER IS CHASING YOU!');
  }
- player.inCar=true;player.carIndex=carIndex;player.x=parkedCars[carIndex].x;player.z=parkedCars[carIndex].z;
- player.y=0;player.yaw=parkedCars[carIndex].yaw;document.body.classList.add('car-mode');
- document.getElementById('carControls').classList.add('active');
- vehicleDoorAction={type:e.type,index:e.index,open:false,time:.55};pendingVehicleEntry=null;carSpeed=0;
+ player.inCar=true;player.carIndex=carIndex;player.seat=e.seat||'driver';player.x=parkedCars[carIndex].x;player.z=parkedCars[carIndex].z;player.y=0;player.yaw=parkedCars[carIndex].yaw;document.body.classList.add('car-mode');
+ const controls=document.getElementById('carControls');controls.classList.add('active');controls.classList.toggle('passenger-mode',player.seat==='passenger');
+ vehicleDoorAction={type:'parked',index:carIndex,seat:player.seat,open:false,time:.55};pendingVehicleEntry=null;carSpeed=0;
 }
 function interact(){
- if(pendingVehicleEntry){showToast('Getting into the vehicle…');return;}
+ if(pendingVehicleEntry){showToast('Getting into the vehicle…');return;}if(vehicleMenuState){closeVehicleMenu();return;}
  if(player.inCar){
-  const car=parkedCars[player.carIndex];if(car){car.x=player.x;car.z=player.z;car.yaw=player.yaw;player.x+=Math.cos(player.yaw)*1.75;player.z-=Math.sin(player.yaw)*1.75;}
-  player.inCar=false;player.carIndex=-1;document.body.classList.remove('car-mode');
-  document.getElementById('carControls').classList.remove('active');carSpeed=0;vehicleDoorAction=null;
-  showToast('You left the vehicle.');return;
+  const car=parkedCars[player.carIndex];if(car){car.x=player.x;car.z=player.z;car.yaw=player.yaw;const side=player.seat==='passenger'?1:-1;player.x+=Math.cos(player.yaw)*side*1.65;player.z-=Math.sin(player.yaw)*side*1.65;}
+  player.inCar=false;player.carIndex=-1;player.seat='driver';document.body.classList.remove('car-mode');document.getElementById('carControls').classList.remove('active','passenger-mode');carSpeed=0;vehicleDoorAction=null;showToast('You left the vehicle.');return;
  }
  const m=currentMission();if(m){const p=targetFor(m);if(distance(player.x,player.z,p.x,p.z)<5){finishMission();return;}}
- let closestNpc=null,npcDistance=5.2;
- for(const n of npcs){if(n.state==='down'||n.state==='gettingUp')continue;const d=distance(player.x,player.z,n.x,n.z);if(d<npcDistance){npcDistance=d;closestNpc=n;}}
- let closestParked=-1,parkedDistance=4.6;
- parkedCars.forEach((c,i)=>{if(c.reclaimed)return;const d=distance(player.x,player.z,c.x,c.z);if(d<parkedDistance){parkedDistance=d;closestParked=i;}});
- let closestTraffic=-1,trafficDistance=4.6;
- trafficCars.forEach((c,i)=>{if(c.stolen)return;const d=distance(player.x,player.z,c.x,c.z);if(d<trafficDistance){trafficDistance=d;closestTraffic=i;}});
- if(closestNpc&&npcDistance<=Math.min(4.3,parkedDistance,trafficDistance)){
-  closestNpc.state='alert';closestNpc.stateTimer=2.8;closestNpc.combatTarget=null;
-  closestNpc.yaw=Math.atan2(player.x-closestNpc.x,player.z-closestNpc.z);showToast('PEDESTRIAN STOPPED · FACING YOU');return;
- }
- if(closestParked>=0&&parkedDistance<=trafficDistance){beginVehicleEntry('parked',closestParked);return;}
- if(closestTraffic>=0){beginVehicleEntry('traffic',closestTraffic);return;}
+ let closestNpc=null,npcDistance=5.2;for(const n of npcs){if(n.state==='down'||n.state==='gettingUp')continue;const d=distance(player.x,player.z,n.x,n.z);if(d<npcDistance){npcDistance=d;closestNpc=n;}}
+ let closestParked=-1,parkedDistance=4.6;parkedCars.forEach((c,i)=>{if(c.reclaimed)return;const d=distance(player.x,player.z,c.x,c.z);if(d<parkedDistance){parkedDistance=d;closestParked=i;}});
+ let closestTraffic=-1,trafficDistance=4.6;trafficCars.forEach((c,i)=>{if(c.stolen)return;const d=distance(player.x,player.z,c.x,c.z);if(d<trafficDistance){trafficDistance=d;closestTraffic=i;}});
+ if(closestNpc&&npcDistance<=Math.min(4.3,parkedDistance,trafficDistance)){closestNpc.state='alert';closestNpc.stateTimer=2.8;closestNpc.combatTarget=null;closestNpc.yaw=Math.atan2(player.x-closestNpc.x,player.z-closestNpc.z);showToast('PEDESTRIAN STOPPED · FACING YOU');return;}
+ if(closestParked>=0&&parkedDistance<=trafficDistance){openVehicleMenu('parked',closestParked);return;}if(closestTraffic>=0){openVehicleMenu('traffic',closestTraffic);return;}
  showToast('No person or vehicle close enough to interact with.');
 }
 function punch(){
@@ -1981,6 +1989,12 @@ runButton.addEventListener('pointerdown',e=>{
 document.getElementById('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
 document.getElementById('punch').addEventListener('pointerdown',e=>{e.preventDefault();punch();});
 document.getElementById('interact').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
+ document.getElementById('vehicleClose').addEventListener('pointerdown',e=>{e.preventDefault();closeVehicleMenu();});
+ document.getElementById('vehicleDrive').addEventListener('pointerdown',e=>{e.preventDefault();vehicleMenuAction('drive');});
+ document.getElementById('vehiclePassenger').addEventListener('pointerdown',e=>{e.preventDefault();vehicleMenuAction('passenger');});
+ document.getElementById('vehicleBonnet').addEventListener('pointerdown',e=>{e.preventDefault();vehicleMenuAction('bonnet');});
+ document.getElementById('vehicleTrunk').addEventListener('pointerdown',e=>{e.preventDefault();vehicleMenuAction('trunk');});
+
 document.getElementById('slot').addEventListener('pointerdown',e=>{e.preventDefault();openOverlay('gadgetOverlay');});
 document.getElementById('inventoryBtn').addEventListener('click',()=>openOverlay('gadgetOverlay'));
 document.getElementById('minimapBox').addEventListener('click',()=>{updateMaps();openOverlay('mapOverlay')});
@@ -2178,33 +2192,36 @@ showToast('Tap ENTER DINDU CITY to begin.');
       if(freeze)next.time=0;
     };
     const makeCar=(tint)=>{
-      const group=new THREE.Group();
-      const model=carTemplate.clone(true);
-      if(tint){
-        const color=new THREE.Color(tint[0],tint[1],tint[2]);
-        model.traverse(o=>{
-          if(!o.isMesh||!o.material)return;
-          const tintMaterial=m=>{const copy=m.clone();if(copy.color)copy.color.setRGB(Math.max(.32,color.r),Math.max(.32,color.g),Math.max(.32,color.b));return copy;};
-          o.material=Array.isArray(o.material)?o.material.map(tintMaterial):tintMaterial(o.material);
-        });
-      }
-      model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-      group.add(model);
+      const group=new THREE.Group(),model=carTemplate.clone(true);
+      if(tint){const color=new THREE.Color(tint[0],tint[1],tint[2]);model.traverse(o=>{if(!o.isMesh||!o.material)return;const tintMaterial=m=>{const copy=m.clone();if(copy.color)copy.color.setRGB(Math.max(.32,color.r),Math.max(.32,color.g),Math.max(.32,color.b));return copy;};o.material=Array.isArray(o.material)?o.material.map(tintMaterial):tintMaterial(o.material);});}
+      model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});group.add(model);
       const bodyColor=tint?new THREE.Color(tint[0],tint[1],tint[2]):new THREE.Color(0x315c86);
-      const doorMat=new THREE.MeshStandardMaterial({color:bodyColor,roughness:.42,metalness:.28});
-      const glassMat=new THREE.MeshPhysicalMaterial({color:0x263d4b,roughness:.2,metalness:.12,transparent:true,opacity:.78});
-      const doorPivot=new THREE.Group();doorPivot.position.set(-.94,.78,.58);
-      const doorPanel=new THREE.Mesh(new THREE.BoxGeometry(.055,.58,1.12),doorMat);
-      doorPanel.position.set(-.015,-.05,-.52);doorPanel.castShadow=true;doorPivot.add(doorPanel);
-      const doorGlass=new THREE.Mesh(new THREE.BoxGeometry(.035,.31,.94),glassMat);
-      doorGlass.position.set(-.012,.37,-.52);doorPivot.add(doorGlass);
-      group.add(doorPivot);group.userData.driverDoorPivot=doorPivot;
-      const shadow=new THREE.Mesh(new THREE.CircleGeometry(1,20),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.20,depthWrite:false}));
-      shadow.rotation.x=-Math.PI/2;shadow.position.y=.014;shadow.scale.set(.92,2.05,1);group.add(shadow);
-      scene.add(group);return group;
+      const doorMat=new THREE.MeshStandardMaterial({color:bodyColor,roughness:.42,metalness:.28}),glassMat=new THREE.MeshPhysicalMaterial({color:0x263d4b,roughness:.2,metalness:.12,transparent:true,opacity:.78}),trimMat=new THREE.MeshStandardMaterial({color:0x171d22,roughness:.72}),leatherMat=new THREE.MeshStandardMaterial({color:0x171b20,roughness:.86}),metalMat=new THREE.MeshStandardMaterial({color:0x69757b,metalness:.65,roughness:.4});
+      const doorPivots=[];
+      function addDoor(seat,side,hingeZ,depth){
+        const pivot=new THREE.Group();pivot.position.set(side*.94,.78,hingeZ);
+        const panel=new THREE.Mesh(new THREE.BoxGeometry(.055,.58,depth),doorMat);panel.position.set(side*.015,-.05,-depth*.47);panel.castShadow=true;pivot.add(panel);
+        const glass=new THREE.Mesh(new THREE.BoxGeometry(.035,.30,depth*.82),glassMat);glass.position.set(side*.012,.34,-depth*.47);pivot.add(glass);
+        const handle=new THREE.Mesh(new THREE.BoxGeometry(.035,.045,.18),metalMat);handle.position.set(side*.035,.04,-depth*.20);pivot.add(handle);
+        group.add(pivot);doorPivots.push({seat,side,pivot});
+      }
+      addDoor('driver',-1,.58,1.12);addDoor('passenger',1,.58,1.12);addDoor('rear-left',-1,-.18,.92);addDoor('rear-right',1,-.18,.92);group.userData.doorPivots=doorPivots;
+      function addSeat(x,z){
+        const cushion=new THREE.Mesh(new THREE.BoxGeometry(.58,.14,.62),leatherMat);cushion.position.set(x,.57,z);cushion.castShadow=true;group.add(cushion);
+        const back=new THREE.Mesh(new THREE.BoxGeometry(.58,.78,.17),leatherMat);back.position.set(x,.94,z-.23);back.castShadow=true;group.add(back);
+        const head=new THREE.Mesh(new THREE.BoxGeometry(.28,.23,.15),leatherMat);head.position.set(x,1.42,z-.20);group.add(head);
+      }
+      addSeat(-.38,.28);addSeat(.38,.28);addSeat(-.38,-.64);addSeat(.38,-.64);
+      const bonnetPivot=new THREE.Group();bonnetPivot.position.set(0,.94,1.22);const bonnetPanel=new THREE.Mesh(new THREE.BoxGeometry(1.58,.075,1.02),doorMat);bonnetPanel.position.set(0,0,.50);bonnetPanel.castShadow=true;bonnetPivot.add(bonnetPanel);group.add(bonnetPivot);
+      const engineBay=new THREE.Group(),engineBase=new THREE.Mesh(new THREE.BoxGeometry(1.48,.12,.96),trimMat),engineBlock=new THREE.Mesh(new THREE.BoxGeometry(.72,.37,.62),metalMat);engineBase.position.set(0,.65,1.68);engineBlock.position.set(0,.83,1.67);engineBlock.castShadow=true;engineBay.add(engineBase,engineBlock);
+      const engineCover=new THREE.Mesh(new THREE.BoxGeometry(.50,.09,.32),new THREE.MeshStandardMaterial({color:0x252d33,roughness:.6}));engineCover.position.set(0,1.06,1.67);engineBay.add(engineCover);
+      const pipeMat=new THREE.MeshStandardMaterial({color:0x8a4b32,metalness:.42,roughness:.48});for(const side of [-1,1]){const pipe=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.62,8),pipeMat);pipe.rotation.z=Math.PI/2;pipe.position.set(side*.48,.83,1.68);engineBay.add(pipe);}group.add(engineBay);engineBay.visible=false;
+      const trunkPivot=new THREE.Group();trunkPivot.position.set(0,.93,-1.18);const trunkPanel=new THREE.Mesh(new THREE.BoxGeometry(1.58,.075,1.0),doorMat);trunkPanel.position.set(0,0,-.49);trunkPanel.castShadow=true;trunkPivot.add(trunkPanel);group.add(trunkPivot);
+      const trunkBay=new THREE.Group(),trunkFloor=new THREE.Mesh(new THREE.BoxGeometry(1.48,.10,.88),trimMat);trunkFloor.position.set(0,.62,-1.65);trunkBay.add(trunkFloor);const spareMat=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.96}),spare=new THREE.Mesh(new THREE.TorusGeometry(.29,.085,10,20),spareMat);spare.rotation.x=Math.PI/2;spare.position.set(0,.79,-1.65);trunkBay.add(spare);group.add(trunkBay);trunkBay.visible=false;
+      const shadow=new THREE.Mesh(new THREE.CircleGeometry(1,20),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.20,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.014;shadow.scale.set(.92,2.05,1);group.add(shadow);
+      group.userData={...group.userData,bonnetPivot,trunkPivot,engineBay,trunkBay};scene.add(group);return group;
     };
-
-    const playerActor=makeHuman(false);
+const playerActor=makeHuman(false);
     const npcActors=link.npcs.map(()=>makeHuman(true));
     const parkedActors=link.parkedCars.map((car,i)=>makeCar(i===0?null:car.color));
     const trafficActors=link.trafficCars.map(car=>makeCar(car.color));
@@ -2256,11 +2273,14 @@ showToast('Tap ENTER DINDU CITY to begin.');
       // Keep the character root fixed to the ground; breathing stays in the upper-body bones.
       actor.group.scale.y=sneaking ? .93 : 1;
     }
-    function updateDoor(actor,open,dt){
-      const pivot=actor&&actor.userData&&actor.userData.driverDoorPivot;if(!pivot)return;
-      const target=open ? .95 : 0;pivot.rotation.y+=(target-pivot.rotation.y)*(1-Math.exp(-14*dt));
-    }
-    function syncActors(dt){
+    function updateDoor(actor,action,car,dt){
+       const doors=actor&&actor.userData&&actor.userData.doorPivots||[];
+       for(const item of doors){const open=!!(action&&action.open&&action.seat===item.seat),target=open?(item.side<0?.95:-.95):0;item.pivot.rotation.y+=(target-item.pivot.rotation.y)*(1-Math.exp(-14*dt));}
+       const bonnet=!!(car&&car.bonnetOpen),trunk=!!(car&&car.trunkOpen),bp=actor&&actor.userData&&actor.userData.bonnetPivot,tp=actor&&actor.userData&&actor.userData.trunkPivot;
+       if(bp)bp.rotation.x+=((bonnet?-.86:0)-bp.rotation.x)*(1-Math.exp(-7*dt));if(tp)tp.rotation.x+=((trunk?.82:0)-tp.rotation.x)*(1-Math.exp(-7*dt));
+       if(actor&&actor.userData&&actor.userData.engineBay)actor.userData.engineBay.visible=bonnet;if(actor&&actor.userData&&actor.userData.trunkBay)actor.userData.trunkBay.visible=trunk;
+     }
+     function syncActors(dt){
       const p=link.player,a=link.animationState,t=performance.now()*.001;
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
@@ -2295,17 +2315,17 @@ showToast('Tap ENTER DINDU CITY to begin.');
       });
       link.parkedCars.forEach((car,i)=>{
         const actor=parkedActors[i];actor.visible=!car.reclaimed&&!(p.inCar&&p.carIndex===i);
-        actor.position.set(car.x,.025,car.z);actor.rotation.y=(car.yaw||0)+Math.PI;
-        updateDoor(actor,!!(action&&action.type==='parked'&&action.index===i&&action.open),dt);
+        actor.position.set(car.x,.025,car.z);actor.rotation.y=(car.yaw||0);
+        updateDoor(actor,action&&action.type==='parked'&&action.index===i?action:null,car,dt);
       });
       link.trafficCars.forEach((car,i)=>{
         const actor=trafficActors[i];actor.visible=!car.stolen&&dist2(p.x,p.z,car.x,car.z)<115*115;
-        actor.position.set(car.x,.025,car.z);actor.rotation.y=(car.yaw||0)+Math.PI;
+        actor.position.set(car.x,.025,car.z);actor.rotation.y=(car.yaw||0);
         if(trafficDrivers[i])trafficDrivers[i].visible=actor.visible;
-        updateDoor(actor,!!(action&&action.type==='traffic'&&action.index===i&&action.open),dt);
+        updateDoor(actor,action&&action.type==='traffic'&&action.index===i?action:null,car,dt);
       });
       activeCar.visible=!!p.inCar;activeCar.position.set(p.x,.025,p.z);
-      activeCar.rotation.y=(p.yaw||0)+Math.PI;playerDriver.visible=!!p.inCar;
+      activeCar.rotation.y=(p.yaw||0);updateDoor(activeCar,action&&action.type==='parked'&&action.index===p.carIndex?action:null,link.parkedCars[p.carIndex],dt);playerDriver.position.x=p.seat==='passenger'?.38:-.38;playerDriver.visible=!!p.inCar;
     }
     function frame(){
       requestAnimationFrame(frame);
