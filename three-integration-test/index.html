@@ -2041,9 +2041,9 @@ function jump(longJump=false){
  const sprintLeap=!!longJump||(runHeld&&push>.42);
  jumpRunning=sprintLeap;jumpLandTimer=0;jumpLandWasSprint=false;
  jumpDirX=Math.sin(player.yaw);jumpDirZ=Math.cos(player.yaw);
- player.vy=sprintLeap?7.15:(push>.12?6.5:6.15);
- jumpBoostTimer=sprintLeap?.62:(push>.12?.28:0);
- jumpAirCarry=sprintLeap?5.1:(push>.12?2.2:0);
+ player.vy=sprintLeap?6.25:(push>.12?5.8:5.55);
+ jumpBoostTimer=sprintLeap?.38:(push>.12?.22:0);
+ jumpAirCarry=sprintLeap?2.8:(push>.12?1.45:0);
  jumpPressed=true;
 }
 function useSlot(){
@@ -2264,7 +2264,7 @@ function render(time){
     updateStage3Simulation(dt);
     if(!player.inCar){
       const wasAirborne=player.y>.03;
-      player.vy-=19*dt;
+      player.vy-=24*dt;
       player.y+=player.vy*dt;
       if(player.y<0){
         if(wasAirborne){jumpLandTimer=jumpRunning?.34:.26;jumpLandWasSprint=jumpRunning;}
@@ -2735,12 +2735,31 @@ showToast('Tap ENTER DINDU CITY to begin.');
        shadow.scale.set(.26,.42,1);
        shadow.renderOrder=-1;
        scene.add(shadow);
-       // Bring the imported rig's hip spacing closer to a relaxed human standing stance.
+       // V8: narrow the leg set, lower the arms into a natural rest stance,
+       // and remember root/hip transforms so animation clips cannot lift the rig.
+       const rootMotionBones=[];
        model.traverse(o=>{
          if(!o.isBone)return;
          const name=o.name.toLowerCase();
-         if(/upleg|upperleg|thigh/.test(name))o.position.x*=.76;
+         const isLeft=/left|(^|[.:_])l($|[.:_])|_l\b|\.l\b/.test(name);
+         const isRight=/right|(^|[.:_])r($|[.:_])|_r\b|\.r\b/.test(name);
+         if(/upleg|upperleg|thigh/.test(name)){
+           o.position.x*=.38;
+           if(isLeft)o.rotation.z+=.12;
+           else if(isRight)o.rotation.z-=.12;
+         }
+         if(/calf|lowerleg|shin/.test(name))o.position.x*=.72;
+         // Mixamo commonly names the upper arms LeftArm / RightArm, not UpperArm.
+         if(/upper.?arm|leftarm|rightarm/.test(name)){
+           if(isLeft)o.rotation.z+=1.02;
+           else if(isRight)o.rotation.z-=1.02;
+         }else if(/shoulder/.test(name)){
+           if(isLeft)o.rotation.z+=.16;
+           else if(isRight)o.rotation.z-=.16;
+         }
+         if(/hips|pelvis|root/.test(name))rootMotionBones.push({bone:o,position:o.position.clone()});
        });
+       const modelPosition=model.position.clone();
        const restPose=[];
        model.traverse(o=>{
          if(o.isBone)restPose.push({bone:o,position:o.position.clone(),quaternion:o.quaternion.clone(),scale:o.scale.clone()});
@@ -2752,7 +2771,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
        const breathBones=[],armBones=[],legBones=[],headBones=[];
        model.traverse(o=>{
          if(!o.isBone)return;
-         const name=o.name.toLowerCase(),left=/left|_l\b/.test(name);
+         const name=o.name.toLowerCase(),left=/left|(^|[.:_])l($|[.:_])|_l\b|\.l\b/.test(name);
          if(/spine|chest/.test(name))breathBones.push({bone:o,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z});
          if(/upperarm|forearm|lowerarm|arm|shoulder|hand|wrist/.test(name)){
            armBones.push({bone:o,name,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,left,
@@ -2766,7 +2785,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
        });
        const initial=actions.idle;
        if(initial){initial.play();actions.active=initial;}
-       return {group,shadow,actions,breathBones,armBones,legBones,headBones,restPose,
+       return {group,shadow,model,modelPosition,rootMotionBones,actions,breathBones,armBones,legBones,headBones,restPose,
          idleWait:5,idleGesture:null,idleProgress:0,idleIndex:0,idleSide:1};
     };
     const switchAction=(actions,next,freeze=false,restPose=null)=>{
@@ -3061,7 +3080,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       group.userData={doorPivots,bonnetPivot,trunkPivot,engineBay,trunkBay,windowPanes,headlightMeshes,headlightPoints,signalMeshes,wheelVisuals};
       scene.add(group);return group;
     };
-const playerActor=makeHuman(false);
+const playerActor=makeHuman(true);
     const npcActors=link.npcs.map(()=>makeHuman(true));
     const parkedActors=link.parkedCars.map((car,i)=>makeCar(i===0?null:car.color));
     const trafficActors=link.trafficCars.map(car=>makeCar(car.color));
@@ -3120,10 +3139,30 @@ const playerActor=makeHuman(false);
       }
       return null;
     }
+    function applyStealthOverlay(actor,weight=1){
+      const w=Math.max(0,Math.min(1,weight));
+      for(const entry of actor.armBones||[]){
+        if(entry.upper)entry.bone.rotation.x+=.13*w;
+        else if(entry.fore)entry.bone.rotation.x+=.18*w;
+      }
+      for(const entry of actor.legBones||[]){
+        if(entry.upper)entry.bone.rotation.x+=.20*w;
+        else if(entry.lower)entry.bone.rotation.x-=.43*w;
+        else if(entry.foot)entry.bone.rotation.x+=.06*w;
+      }
+      for(const entry of actor.breathBones||[])entry.bone.rotation.x+=.15*w;
+      for(const entry of actor.headBones||[])entry.bone.rotation.x+=.045*w;
+    }
     function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,idle=null){
       const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
-      const jumpClip=actor.actions.active===actor.actions.jump;
-      if(locomotionClip||jumpClip){actor.group.scale.y=sneaking?.97:1;return;}
+      // Game physics owns vertical movement; keep the GLB root/hip translation fixed.
+      for(const entry of actor.rootMotionBones||[])entry.bone.position.copy(entry.position);
+      if(actor.model&&actor.modelPosition)actor.model.position.copy(actor.modelPosition);
+      if(locomotionClip){
+        if(sneaking)applyStealthOverlay(actor,1);
+        actor.group.scale.y=1;
+        return;
+      }
       const breath=Math.sin(t*2.15)*.012;
       for(const entry of actor.breathBones||[]){
         entry.bone.rotation.set(entry.x+(!moving?breath:0),entry.y,entry.z+(!moving?Math.sin(t*1.2)*.006:0));
@@ -3168,7 +3207,8 @@ const playerActor=makeHuman(false);
         }
         entry.bone.rotation.set(x,y,z);
       }
-      actor.group.scale.y=sneaking ? .93 : 1;
+      if(sneaking)applyStealthOverlay(actor,.92);
+      actor.group.scale.y=1;
     }
     function updateDoor(actor,action,car,dt){
        const doors=actor&&actor.userData&&actor.userData.doorPivots||[];
@@ -3204,7 +3244,7 @@ const playerActor=makeHuman(false);
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
        const idlePose=updateIdleGesture(playerActor,dt,!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.vehicleEntering&&!a.vehicleExiting&&!a.playerDown&&!a.running);
-       playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y+(a.sneaking?-.07:0),p.z);
+       playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y+(a.sneaking?-.10:0),p.z);
        if(visualPlayerYaw===null)visualPlayerYaw=p.yaw||0;
        const turnDelta=Math.atan2(Math.sin((p.yaw||0)-visualPlayerYaw),Math.cos((p.yaw||0)-visualPlayerYaw));
        visualPlayerYaw+=turnDelta*(1-Math.exp(-12*dt));
@@ -3217,7 +3257,7 @@ const playerActor=makeHuman(false);
       const playerAction=a.punching?(playerActor.actions.punch||playerActor.actions.idle):
         a.vehicleExiting?(playerActor.actions.exit||playerActor.actions.walk||playerActor.actions.idle):
         a.vehicleEntering?(playerActor.actions.enter||playerActor.actions.walk||playerActor.actions.idle):
-        a.jumping?(playerActor.actions.jump||playerActor.actions.idle):
+        a.jumping?(playerActor.actions.idle||null):
         a.moving?(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):
         playerActor.actions.idle;
        switchAction(playerActor.actions,playerAction,false,playerActor.restPose);
