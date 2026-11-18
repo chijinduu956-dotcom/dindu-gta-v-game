@@ -666,7 +666,7 @@ let playerHurtCooldown=0;
 const hospitalSpawn={x:-78,z:9};
 let npcPunchCooldown=0;
 let playerPunchHits=0,playerPunchWindow=0,jumpBoostTimer=0,sneakMode=false,joyTapAt=0,lastRunTap=0;
-let pendingVehicleEntry=null,vehicleDoorAction=null,wantedTimer=0,vehicleExitTimer=0;let vehicleMenuState=null;
+let pendingVehicleEntry=null,vehicleDoorAction=null,wantedTimer=0,vehicleExitTimer=0,vehicleExitMotion=null;let vehicleMenuState=null;
 function makeSidewalkRoute(bx,bz){
  // Keep pedestrians on the sidewalk but clear of the junction signal posts and lamp shafts.
  const offset=6.9;
@@ -1972,8 +1972,26 @@ function beginVehicleEntry(kind,index,seat='driver'){
 function updateVehicleEntry(dt){
  if(vehicleDoorAction&&!pendingVehicleEntry){vehicleDoorAction.time-=dt;if(vehicleDoorAction.time<=0)vehicleDoorAction=null;}if(!pendingVehicleEntry)return;
  const e=pendingVehicleEntry,car=e.type==='traffic'?trafficCars[e.index]:parkedCars[e.index];if(!car){pendingVehicleEntry=null;vehicleDoorAction=null;return;}
- e.elapsed+=dt;const side=e.seat==='passenger'?1:-1,sideX=car.x+Math.cos(car.yaw)*side*1.35,sideZ=car.z-Math.sin(car.yaw)*side*1.35,approach=Math.min(1,e.elapsed/.48);
- player.x=e.startX+(sideX-e.startX)*approach;player.z=e.startZ+(sideZ-e.startZ)*approach;player.yaw=Math.atan2(car.x-player.x,car.z-player.z);if(e.elapsed<.98)return;
+ e.elapsed+=dt;
+ const side=e.seat==='passenger'?1:-1;
+ const co=Math.cos(car.yaw),si=Math.sin(car.yaw);
+ const doorX=car.x+co*side*1.35,doorZ=car.z-si*side*1.35;
+ const seatX=car.x+co*side*.46,seatZ=car.z-si*side*.46;
+ const clamp01=v=>Math.max(0,Math.min(1,v));
+ const smooth=v=>{v=clamp01(v);return v*v*(3-2*v);};
+ const approach=smooth(e.elapsed/.48),stepIn=smooth((e.elapsed-.43)/.55);
+ if(e.elapsed<.48){
+   player.x=e.startX+(doorX-e.startX)*approach;
+   player.z=e.startZ+(doorZ-e.startZ)*approach;
+   player.yaw=Math.atan2(car.x-player.x,car.z-player.z);
+ }else{
+   player.x=doorX+(seatX-doorX)*stepIn;
+   player.z=doorZ+(seatZ-doorZ)*stepIn;
+   const faceDoor=car.yaw+side*Math.PI/2;
+   const angleDelta=Math.atan2(Math.sin(car.yaw-faceDoor),Math.cos(car.yaw-faceDoor));
+   player.yaw=faceDoor+angleDelta*stepIn;
+ }
+ if(e.elapsed<.98)return;
  let carIndex=e.index;
  if(e.type==='traffic'){
   const source=trafficCars[e.index];if(!source){pendingVehicleEntry=null;return;}source.stolen=true;source.speed=0;source.stoppedForTheft=false;
@@ -1999,15 +2017,28 @@ function leavePlayerVehicle(){
   if(!isBlocked(x,z)){chosen={x,z,doorSide:p.doorSide};break;}
  }
  if(!chosen){player.inCar=wasInCar;player.carIndex=oldIndex;showToast('MAKE SPACE BESIDE THE VEHICLE TO EXIT');return false;}
- player.x=chosen.x;player.z=chosen.z;player.y=0;player.vy=0;
- player.yaw=chosen.doorSide?car.yaw+chosen.doorSide*Math.PI/2:car.yaw+Math.PI;
- player.seat='driver';stickX=stickY=0;runHeld=false;
+ const startX=car.x+co*side*.46,startZ=car.z-si*side*.46;
+ const endYaw=chosen.doorSide?car.yaw+chosen.doorSide*Math.PI/2:car.yaw+Math.PI;
+ player.x=startX;player.z=startZ;player.y=0;player.vy=0;
+ player.yaw=endYaw;player.seat='driver';stickX=stickY=0;runHeld=false;
+ vehicleExitMotion={startX,startZ,endX:chosen.x,endZ:chosen.z,yaw:endYaw,elapsed:0,duration:.72};
  document.body.classList.remove('car-mode','driver-mode','passenger-mode');
  document.getElementById('carControls').classList.remove('active','passenger-mode');
  carSpeed=0;carAccelerateHeld=carBrakeHeld=carReverseHeld=carHandbrakeHeld=false;
  vehicleDoorAction={type:'parked',index,seat,open:true,time:.72};
- vehicleExitTimer=.72;stopDinduCarSound();saveGame();return true;
+ vehicleExitTimer=.72;stopDinduCarSound();return true;
 }
+    function updateVehicleExitMotion(dt){
+      const m=vehicleExitMotion;
+      if(!m)return;
+      m.elapsed=Math.min(m.duration,m.elapsed+dt);
+      const p=Math.max(0,Math.min(1,m.elapsed/m.duration));
+      const eased=p*p*(3-2*p);
+      player.x=m.startX+(m.endX-m.startX)*eased;
+      player.z=m.startZ+(m.endZ-m.startZ)*eased;
+      player.yaw=m.yaw;
+      if(p>=1){vehicleExitMotion=null;saveGame();}
+    }
 function interact(){
  if(pendingVehicleEntry)return;
  if(vehicleMenuState){closeVehicleMenu();return;}
@@ -2027,7 +2058,7 @@ function interact(){
 }
 function punch(){
  if(player.inCar||playerDownTimer>0||pendingVehicleEntry)return;
- punchTimer=.58;let target=null,best=2.65;const fx=Math.sin(player.yaw),fz=Math.cos(player.yaw);
+ punchTimer=.72;let target=null,best=2.65;const fx=Math.sin(player.yaw),fz=Math.cos(player.yaw);
  for(const n of npcs){
   if(n.state==='down'||n.state==='gettingUp')continue;
   const dx=n.x-player.x,dz=n.z-player.z,d=Math.hypot(dx,dz);if(d>=best)continue;
@@ -2205,6 +2236,7 @@ function render(time){
   updateStage3Camera(dt);
     if(playerDownTimer>0||pendingVehicleEntry){stickX=0;stickY=0;runHeld=false;}
     if(pendingVehicleEntry||vehicleDoorAction)updateVehicleEntry(dt);
+    if(vehicleExitMotion)updateVehicleExitMotion(dt);
     if(player.inCar){
       const vehicle=parkedCars[player.carIndex];
       if(!vehicle){player.inCar=false;player.carIndex=-1;player.seat='driver';carSpeed=0;}
@@ -2334,7 +2366,7 @@ window.__DINDU3D_LINK__ = {
     vehicleExiting:vehicleExitTimer>0,
     running:runHeld || (player.inCar&&Math.abs(carSpeed)>6.5),
     moveAmount:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
-    jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/.34):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
+    jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,jumpVelocity:player.vy,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/.34):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
     punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
     vehicleEntryProgress:pendingVehicleEntry?Math.min(1,pendingVehicleEntry.elapsed/.98):0,
     vehicleExitProgress:vehicleExitTimer>0?Math.max(0,Math.min(1,1-vehicleExitTimer/.72)):1,
@@ -3073,7 +3105,7 @@ const playerActor=makeHuman(true);
     const trafficActors=link.trafficCars.map(car=>makeCar(car.color));
     const activeCar=makeCar(null);
     function attachDriver(carActor,seat='driver'){
-      const driver=SkeletonUtils.clone(playerTemplate);driver.scale.multiplyScalar(.54);
+      const driver=SkeletonUtils.clone(playerTemplate);driver.scale.multiplyScalar(.90);
        // Local -X is the driver's left side; +X is the front passenger seat.
        driver.position.set(seat==='passenger'?.42:-.42,.30,.10);driver.rotation.y=seat==='passenger'?Math.PI:0;
       driver.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
@@ -3146,122 +3178,134 @@ const playerActor=makeHuman(true);
       aimRigSegment(actor,'RightArm','RightForeArm',[-.22,-.97,.03],1);
       aimRigSegment(actor,'RightForeArm','RightHand',[-.12,-.99,.02],1);
     }
-    function applyCrouchPose(actor,weight=1,moving=false){
+    function applyCrouchPose(actor,weight=1,moving=false,t=0){
       const w=Math.max(0,Math.min(1,weight));
-      const legW=w*(moving?.32:1);
-      const torsoW=w*(moving?.58:1);
-      const armW=w*(moving?.62:1);
+      const stride=moving?Math.sin((Number(t)||0)*5.0)*.075:0;
       const hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
       if(hips&&hipsRest){
         const worldScale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
         hips.position.copy(hipsRest.position);
-        hips.position.y-=(.19*w)/worldScale;
+        hips.position.y-=(.25*w)/worldScale;
+        hips.position.z+=(.035*w)/worldScale;
       }
-      // Bend from the real joints using bone-to-bone directions, not guessed Euler axes.
-      aimRigSegment(actor,'Spine02','Spine01',[0,.92,.39],torsoW);
-      aimRigSegment(actor,'Spine01','Spine',[0,.94,.34],torsoW);
-      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.05,-.70,.71],legW);
-      aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.94,-.34],legW);
-      aimRigSegment(actor,'RightUpLeg','RightLeg',[-.05,-.70,.71],legW);
-      aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.94,-.34],legW);
-      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],legW);
-      aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],legW);
-      // Arms stay apart and forward like the low crouch in the supplied reference.
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.44,-.66,.61],armW);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.08,-.32,.94],armW);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[.04,-.14,.99],armW);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.44,-.66,.61],armW);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.08,-.32,.94],armW);
-      aimRigSegment(actor,'RightForeArm','RightHand',[-.04,-.14,.99],armW);
-    }
-    function applyJumpPose(actor,sprintJump,jumpHeight){
-      const w=Math.max(.35,Math.min(1,.38+(Math.max(0,jumpHeight)/.72)));
-      if(sprintJump){
-        // Forward sprint leap: torso pitched forward, leading arm/leg forward,
-        // trailing arm/leg counterbalancing behind.
-        aimRigSegment(actor,'Spine02','Spine01',[0,.95,.28],w*.72);
-        aimRigSegment(actor,'Spine01','Spine',[0,.96,.22],w*.72);
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[.55,.34,.76],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[.10,.32,.94],w);
-        aimRigSegment(actor,'LeftForeArm','LeftHand',[.02,.18,.98],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[-.30,.76,-.57],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[-.08,.70,-.70],w);
-        aimRigSegment(actor,'RightForeArm','RightHand',[-.02,.32,-.94],w);
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.05,-.50,.86],w);
-        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.94,-.32],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.92,-.38],w);
-        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.98,.16],w);
-      }else{
-        // Regular jump: both arms open and raised, knees tucked under the body.
-        aimRigSegment(actor,'Spine02','Spine01',[0,.98,-.16],w*.48);
-        aimRigSegment(actor,'Spine01','Spine',[0,.99,-.10],w*.48);
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[.55,.72,.42],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,.58,.80],w);
-        aimRigSegment(actor,'LeftForeArm','LeftHand',[.05,.34,.94],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[-.55,.72,.42],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[-.12,.58,.80],w);
-        aimRigSegment(actor,'RightForeArm','RightHand',[-.05,.34,.94],w);
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.62,.78],w);
-        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.94,-.32],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.62,.78],w);
-        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.94,-.32],w);
-      }
+      // Deep crouch: hips lower, thighs fold forward, torso leans forward.
+      // A small alternating thigh offset keeps stealth movement from looking frozen.
+      aimRigSegment(actor,'Spine02','Spine01',[0,.80,.60],w);
+      aimRigSegment(actor,'Spine01','Spine',[0,.84,.54],w);
+      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.56,.83+stride],w);
+      aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.96,-.27],w);
+      aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.56,.83-stride],w);
+      aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.96,-.27],w);
       aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],w);
       aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],w);
+      // Hands stay clear of the torso and reach slightly forward for balance.
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.48,-.56,.67],w);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.10,-.36,.93],w);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.04,-.16,.98],w);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.48,-.56,.67],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.10,-.36,.93],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.04,-.16,.98],w);
     }
-    function applyLandingPose(actor,weight,sprint){
-      // Absorb the landing with the same grounded knee/hip bend as the crouch.
-      applyCrouchPose(actor,Math.max(0,Math.min(1,weight))*.86,false);
+    function applyJumpPose(actor,sprintJump,jumpHeight,jumpVelocity=0){
+      const h=Math.max(0,Math.min(1,(Number(jumpHeight)||0)/.72));
+      const rising=(Number(jumpVelocity)||0)>0;
+      const w=Math.max(.58,Math.min(1,.62+.38*h));
+      if(sprintJump){
+        // Forward-running leap: chest pitched forward, one arm reaches ahead,
+        // the other trails; the legs split into a clear airborne stride.
+        aimRigSegment(actor,'Spine02','Spine01',[0,.82,.57],w*.90);
+        aimRigSegment(actor,'Spine01','Spine',[0,.86,.50],w*.90);
+        aimRigSegment(actor,'LeftShoulder','LeftArm',[.48,.48,.73],w);
+        aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,.38,.92],w);
+        aimRigSegment(actor,'LeftForeArm','LeftHand',[.03,.20,.98],w);
+        aimRigSegment(actor,'RightShoulder','RightArm',[-.52,.18,-.83],w);
+        aimRigSegment(actor,'RightArm','RightForeArm',[-.12,.28,-.95],w);
+        aimRigSegment(actor,'RightForeArm','RightHand',[-.03,.16,-.98],w);
+        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.50,.86],w);
+        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.92,-.38],w);
+        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.88,-.48],w);
+        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.98,.18],w);
+      }else{
+        // Vertical jump: both arms rise with bent elbows and both knees tuck back.
+        aimRigSegment(actor,'Spine02','Spine01',[0,.98,-.12],w*.62);
+        aimRigSegment(actor,'Spine01','Spine',[0,.99,-.08],w*.62);
+        aimRigSegment(actor,'LeftShoulder','LeftArm',[.54,.68,.49],w);
+        aimRigSegment(actor,'LeftArm','LeftForeArm',[.22,.80,.55],w);
+        aimRigSegment(actor,'LeftForeArm','LeftHand',[.06,.38,.92],w);
+        aimRigSegment(actor,'RightShoulder','RightArm',[-.54,.68,.49],w);
+        aimRigSegment(actor,'RightArm','RightForeArm',[-.22,.80,.55],w);
+        aimRigSegment(actor,'RightForeArm','RightHand',[-.06,.38,.92],w);
+        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.48,-.88],w);
+        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.82,.57],w);
+        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.48,-.88],w);
+        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.82,.57],w);
+      }
+      const footWeight=rising?.85:1;
+      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],w*footWeight);
+      aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],w*footWeight);
+    }
+    function applyLandingPose(actor,weight,sprint,t=0){
+      // Absorb impact through hips and knees, then return to standing.
+      applyCrouchPose(actor,Math.max(0,Math.min(1,weight))*.86,false,t);
     }
     function applyStylizedPunch(actor,punchTime){
-      // Short, non-graphic game punch: one arm extends forward while the other guards.
-      const phase=Math.max(0,Math.min(1,1-(Number(punchTime)||0)/.58));
-      const w=Math.sin(Math.PI*phase);
-      if(w<=.001)return;
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.16,-.08,.985],w);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.035,-.06,.997],w);
-      aimRigSegment(actor,'RightForeArm','RightHand',[0,-.02,1],w);
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.48,-.52,.70],w*.78);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.20,-.24,.95],w*.78);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[.08,-.12,.99],w*.78);
+      // Three readable phases: pull back, extend the right fist, recover.
+      const phase=Math.max(0,Math.min(1,1-(Number(punchTime)||0)/.72));
+      const envelope=Math.sin(Math.PI*phase);
+      if(envelope<=.001)return;
+      const strike=Math.max(0,Math.min(1,(phase-.16)/.34));
+      const eased=strike*strike*(3-2*strike);
+      const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+      const upper=mix([-.42,-.28,-.86],[-.12,-.08,.99],eased);
+      const fore=mix([-.10,-.48,.87],[0,-.08,.997],eased);
+      aimRigSegment(actor,'RightShoulder','RightArm',upper,envelope);
+      aimRigSegment(actor,'RightArm','RightForeArm',fore,envelope);
+      aimRigSegment(actor,'RightForeArm','RightHand',[0,-.02,1],envelope);
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.50,-.48,.72],envelope*.82);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.18,-.26,.95],envelope*.82);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.06,-.12,.99],envelope*.82);
       const spine=actor.rig&&actor.rig.Spine,rest=getRigRest(actor,'Spine');
-      if(spine&&rest)spine.quaternion.copy(rest.quaternion).multiply(
-        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-.10*w));
+      if(spine&&rest){
+        const twist=phase<.48?-.16*envelope:.10*envelope;
+        spine.quaternion.copy(rest.quaternion).multiply(
+          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),twist));
+      }
     }
-
     function applyVehicleTransitionPose(actor,entering,progress){
       const p=Math.max(0,Math.min(1,progress));
-      const weight=entering?Math.max(0,Math.min(1,(p-.30)/.60)):Math.max(0,1-p);
+      const weight=entering?Math.max(0,Math.min(1,(p-.46)/.54)):Math.max(0,1-p);
       if(weight<=.001)return;
-      // The existing vehicle logic walks to the door and opens it; this pose bends
-      // the player down into the seat, then reverses while getting out.
-      applyCrouchPose(actor,weight*.92,false);
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.50,-.42,.75],weight);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,-.12,.99],weight);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[.04,-.04,1],weight);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.28,-.58,.76],weight);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.08,-.24,.96],weight);
-      aimRigSegment(actor,'RightForeArm','RightHand',[-.03,-.08,.99],weight);
+      // Lower the hips and fold the torso toward the seat while the root moves
+      // through the open driver-side door.
+      applyCrouchPose(actor,weight*.94,false);
+      aimRigSegment(actor,'Spine02','Spine01',[0,.72,.69],weight);
+      aimRigSegment(actor,'Spine01','Spine',[0,.78,.62],weight);
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.50,-.36,.78],weight);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.16,-.16,.97],weight);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.05,-.04,.99],weight);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.42,-.46,.78],weight);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.10,-.22,.97],weight);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.03,-.06,.99],weight);
     }
-    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1){
+    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1,jumpVelocity=0){
       const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
-      // Keep imported animation root motion from changing the fitted character height.
+      // Remove root translation from the imported clips without scaling the body.
       for(const entry of actor.rootMotionBones||[])entry.bone.position.copy(entry.position);
       if(actor.model&&actor.modelPosition)actor.model.position.copy(actor.modelPosition);
       if(locomotionClip){
-        if(sneaking)applyCrouchPose(actor,.62,true);
+        if(sneaking)applyCrouchPose(actor,1,true,t);
         if(punching)applyStylizedPunch(actor,punchTime);
-        actor.group.scale.y=1;
+        actor.group.scale.set(1,1,1);
         return;
       }
       applyNaturalStand(actor);
-      if(vehicleEntering){applyVehicleTransitionPose(actor,true,entryProgress);actor.group.scale.y=1;return;}
-      if(vehicleExiting){applyVehicleTransitionPose(actor,false,exitProgress);actor.group.scale.y=1;return;}
-      if(sneaking){applyCrouchPose(actor,1,false);actor.group.scale.y=1;return;}
-      if(jumping){applyJumpPose(actor,!!sprintJump,jumpHeight);actor.group.scale.y=1;return;}
-      if(landingWeight>0)applyLandingPose(actor,landingWeight,!!landingSprint);
+      if(vehicleEntering){applyVehicleTransitionPose(actor,true,entryProgress);actor.group.scale.set(1,1,1);return;}
+      if(vehicleExiting){applyVehicleTransitionPose(actor,false,exitProgress);actor.group.scale.set(1,1,1);return;}
+      if(sneaking){applyCrouchPose(actor,1,!!moving,t);actor.group.scale.set(1,1,1);return;}
+      if(jumping){applyJumpPose(actor,!!sprintJump,jumpHeight,jumpVelocity);actor.group.scale.set(1,1,1);return;}
+      if(landingWeight>0)applyLandingPose(actor,landingWeight,!!landingSprint,t);
       if(punching)applyStylizedPunch(actor,punchTime);
-      actor.group.scale.y=1;
+      actor.group.scale.set(1,1,1);
     }
     function updateDoor(actor,action,car,dt){
        const doors=actor&&actor.userData&&actor.userData.doorPivots||[];
@@ -3296,7 +3340,7 @@ const playerActor=makeHuman(true);
       const p=link.player,a=link.animationState,t=performance.now()*.001;
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
-       playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y,p.z);
+       playerActor.group.visible=!p.inCar&&(!a.vehicleExiting||a.vehicleExitProgress>.48);playerActor.group.position.set(p.x,p.y,p.z);
        if(visualPlayerYaw===null)visualPlayerYaw=p.yaw||0;
        const turnDelta=Math.atan2(Math.sin((p.yaw||0)-visualPlayerYaw),Math.cos((p.yaw||0)-visualPlayerYaw));
        visualPlayerYaw+=turnDelta*(1-Math.exp(-12*dt));
@@ -3306,16 +3350,15 @@ const playerActor=makeHuman(true);
        const playerShadowSize=a.jumping?1.15:1;
        playerActor.shadow.scale.set(.26*playerShadowSize,.42*playerShadowSize,1);
        playerActor.shadow.material.opacity=a.jumping?.13:.21;
-      const playerAction=(a.punching&&a.moving)?(a.running&&!a.sneaking?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):
-        (a.jumping||a.punching||a.vehicleExiting||(a.vehicleEntering&&(a.vehicleEntryProgress||0)>=.38))?null:
+      const playerAction=(a.jumping||a.punching||a.sneaking||a.vehicleExiting||(a.vehicleEntering&&(a.vehicleEntryProgress||0)>=.38))?null:
         a.vehicleEntering?(playerActor.actions.walk||null):
-        a.moving?(a.sneaking?(playerActor.actions.walk||playerActor.actions.run):(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run))):null;
+        a.moving?(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):null;
        switchAction(playerActor.actions,playerAction,false,playerActor.restPose);
        const stride=Math.max(0,Math.min(1,Number(a.moveAmount)||0));
        if(playerActor.actions.walk)playerActor.actions.walk.timeScale=a.sneaking?(.22+.32*stride):(.38+.82*stride);
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
-       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1);
+       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0);
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
         const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
