@@ -3113,7 +3113,7 @@ const playerActor=makeHuman(true);
       camera.lookAt(p.x,y,p.z);
       camera.updateMatrixWorld();
     }
-    const idleGestureOrder=['look','scratch','fold','collar'];
+    const idleGestureOrder=['look'];
     function updateIdleGesture(actor,dt,eligible){
       if(!eligible){actor.idleWait=5;actor.idleGesture=null;actor.idleProgress=0;return null;}
       if(actor.idleGesture){
@@ -3179,22 +3179,25 @@ const playerActor=makeHuman(true);
       }
     }
     function applyCrouchPose(actor,weight=1,moving=false){
-      const w=Math.max(0,Math.min(1,weight)),hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
+      const w=Math.max(0,Math.min(1,weight));
+      const setRestBend=(name,angle)=>{
+        const bone=actor.rig&&actor.rig[name],rest=getRigRest(actor,name);
+        if(!bone||!rest)return;
+        bone.quaternion.copy(rest.quaternion).multiply(
+          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle*w));
+      };
+      const hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
       if(hips&&hipsRest){
-        const worldScale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
         hips.position.copy(hipsRest.position);
-        hips.position.y-=.105*w/worldScale;
+        hips.position.y-=.075*w;
       }
-      // Torso leans forward; thighs and calves fold into a stable crouch.
-      aimRigSegment(actor,'Hips','Spine02',[0,.965,.26],w);
-      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[-.04,-.82,.57],w);
-      aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.95,-.31],w);
-      aimRigSegment(actor,'RightUpLeg','RightLeg',[.04,-.82,.57],w);
-      aimRigSegment(actor,'RightLeg','RightFoot',[0,-.95,-.31],w);
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.34,-.70,.62],w*(moving?.72:1));
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.02,-.27,.96],w*(moving?.72:1));
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.34,-.70,.62],w*(moving?.72:1));
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.02,-.27,.96],w*(moving?.72:1));
+      // Conservative local bends at the real thigh and knee joints.
+      // Arms stay in the model's verified relaxed/rest pose.
+      setRestBend('LeftUpLeg',.38);
+      setRestBend('RightUpLeg',.38);
+      setRestBend('LeftLeg',-.72);
+      setRestBend('RightLeg',-.72);
+      setRestBend('Spine02',.12);
     }
     function applyJumpPose(actor,sprintJump,jumpHeight){
       const w=Math.max(.25,Math.min(1,.30+(Math.max(0,jumpHeight)/.78)));
@@ -3239,31 +3242,14 @@ const playerActor=makeHuman(true);
     }
     function applyIdleGesture(actor,idle){
       if(!idle||idle.weight<=0)return;
+      // V9.2: disable unverified arm gestures; they caused the arms-out/T-pose.
+      // Only the verified head joint is used for a subtle look-around.
       const w=Math.max(0,Math.min(1,idle.weight));
-      const left=idle.side<0;
-      if(idle.name==='look'){
-        const head=actor.rig&&actor.rig.Head;
-        if(head)head.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),idle.side*.28*w));
-        return;
-      }
-      const shoulder=left?'LeftShoulder':'RightShoulder';
-      const upper=left?'LeftArm':'RightArm';
-      const fore=left?'LeftForeArm':'RightForeArm';
-      const hand=left?'LeftHand':'RightHand';
-      const sx=left?1:-1;
-      if(idle.name==='scratch'){
-        aimRigSegment(actor,shoulder,upper,[-sx*.66,.70,.28],w);
-        aimRigSegment(actor,upper,fore,[-sx*.34,.78,.52],w);
-        aimRigSegment(actor,fore,hand,[0,.18,.98],w);
-      }else if(idle.name==='collar'){
-        aimRigSegment(actor,shoulder,upper,[-sx*.48,.82,.27],w);
-        aimRigSegment(actor,upper,fore,[-sx*.28,.78,.56],w);
-        aimRigSegment(actor,fore,hand,[0,-.10,1],w);
-      }else if(idle.name==='fold'){
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[-.66,-.60,.45],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[-.86,-.22,.46],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[.66,-.60,.45],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[.86,-.22,.46],w);
+      const head=actor.rig&&actor.rig.Head;
+      if(head&&idle.name==='look'){
+        const rest=getRigRest(actor,'Head');
+        if(rest)head.quaternion.copy(rest.quaternion).multiply(
+          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),idle.side*.20*w));
       }
     }
     function applyVehicleTransitionPose(actor,entering,progress){
