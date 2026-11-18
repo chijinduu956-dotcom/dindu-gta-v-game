@@ -3100,6 +3100,10 @@ showToast('Tap ENTER DINDU CITY to begin.');
       scene.add(group);return group;
     };
 const playerActor=makeHuman(true);
+    // Keep the fitted height at 1.78m, but give the on-foot player a little more
+    // natural shoulder/chest width. This changes X only, never vertical scale.
+    playerActor.model.scale.x *= 1.08;
+    playerActor.model.updateMatrixWorld(true);
     const npcActors=link.npcs.map(()=>makeHuman(true));
     const parkedActors=link.parkedCars.map((car,i)=>makeCar(i===0?null:car.color));
     const trafficActors=link.trafficCars.map(car=>makeCar(car.color));
@@ -3169,14 +3173,15 @@ const playerActor=makeHuman(true);
       return bone&&actor.restPose?actor.restPose.find(p=>p.bone===bone):null;
     }
     function applyNaturalStand(actor){
-      // Static relaxed stance. Arms hang slightly out from the torso so the hands
-      // remain visible beside the hips instead of clipping into the body.
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.62,-.78,.02],1);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.22,-.97,.03],1);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[.12,-.99,.02],1);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.62,-.78,.02],1);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.22,-.97,.03],1);
-      aimRigSegment(actor,'RightForeArm','RightHand',[-.12,-.99,.02],1);
+      // Neutral human stance: shoulders relaxed, upper arms slightly away from
+      // the ribs, elbows softly bent, and hands resting outside the thighs.
+      // The mirrored local-X targets keep both hands clear of the torso.
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.68,-.73,.02],1);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.32,-.94,.08],1);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.18,-.98,.02],1);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.68,-.73,.02],1);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.32,-.94,.08],1);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.18,-.98,.02],1);
     }
     function applyCrouchPose(actor,weight=1,moving=false,t=0){
       const w=Math.max(0,Math.min(1,weight));
