@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>DINDU GTA V — V5 Movement & Radial Controls</title>
+<title>DINDU GTA V — V7 Natural Idle & Dynamic Controls</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:white;font-family:Arial,sans-serif;touch-action:none}
@@ -392,6 +392,28 @@ body.passenger-mode #actions #carControls #carExit{width:110px!important;height:
 #actions #punch .control-svg path:first-child{fill:#e9eef1!important;stroke:#101a22!important}
 #actions #run.held{border-color:#f5d48d!important;background:radial-gradient(circle at 32% 20%,#8a7044,#17232d 76%)!important;box-shadow:0 0 0 2px #edc87552,0 4px 15px #000b,inset 0 1px 3px #fff5!important}
 #actions #run.held .control-svg{filter:drop-shadow(0 0 4px #efc36d88)!important}
+/* DINDU GTA V7 — natural idle, dynamic left touch area and premium action buttons */
+#joystick{position:fixed!important;left:0!important;top:auto!important;bottom:0!important;width:min(48vw,560px)!important;height:76dvh!important;min-height:260px!important;max-height:760px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;z-index:8!important;pointer-events:auto!important;touch-action:none!important}
+#joystick:before{content:"";position:absolute;left:var(--joy-base-x,-200px);top:var(--joy-base-y,-200px);width:var(--joy-size,172px);height:var(--joy-size,172px);transform:translate(-50%,-50%);border:2px solid #e8f0f1b8;border-radius:50%;background:radial-gradient(circle at 42% 35%,#53677779,#111f2d9c 72%);box-shadow:inset 0 0 22px #dbe8f022,0 5px 22px #0007;opacity:0;transition:opacity .12s ease;pointer-events:none}
+#joystick.active:before{opacity:.82}
+#stick{position:absolute!important;left:0!important;top:0!important;display:none;width:68px!important;height:68px!important;border:2px solid #f7fbfc!important;border-radius:50%!important;background:radial-gradient(circle at 32% 25%,#f1f4f6,#718592 62%,#26343e)!important;box-shadow:0 5px 16px #000a,inset 0 1px 4px #fff8!important;transform:translate(-50%,-50%)!important;pointer-events:none!important}
+#joystick.active #stick{display:block!important}
+#micBtn{z-index:9!important}
+body.driver-mode #joystick{bottom:calc(max(10px,env(safe-area-inset-bottom)) + 112px)!important;height:64dvh!important;max-height:620px!important}
+body.passenger-mode #joystick{display:none!important}
+body:not(.driver-mode):not(.passenger-mode) #actions{right:max(14px,env(safe-area-inset-right))!important;bottom:max(14px,env(safe-area-inset-bottom))!important;width:144px!important;display:grid!important;grid-template-columns:repeat(2,68px)!important;grid-template-rows:repeat(2,68px)!important;gap:8px!important;align-items:center!important;justify-items:center!important;pointer-events:none!important;z-index:12!important}
+body:not(.driver-mode):not(.passenger-mode) #actions #actionGrid{display:contents!important}
+body:not(.driver-mode):not(.passenger-mode) #actions .action,body:not(.driver-mode):not(.passenger-mode) #actions #interact{width:68px!important;height:68px!important;min-width:68px!important;max-width:68px!important;margin:0!important;border:1.5px solid #eaf1f4d9!important;border-radius:50%!important;background:radial-gradient(circle at 32% 20%,#657c8b,#172531 72%)!important;box-shadow:0 5px 17px #000b,inset 0 1px 3px #ffffff38!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:1px!important;padding:3px!important;pointer-events:auto!important;overflow:hidden!important}
+body:not(.driver-mode):not(.passenger-mode) #actions #jump{grid-column:1;grid-row:1}
+body:not(.driver-mode):not(.passenger-mode) #actions #punch{grid-column:2;grid-row:1}
+body:not(.driver-mode):not(.passenger-mode) #actions #interact{grid-column:1;grid-row:2}
+body:not(.driver-mode):not(.passenger-mode) #actions #run{grid-column:2;grid-row:2}
+#actions .action .control-svg{width:43px!important;height:43px!important;stroke-width:2.8!important;overflow:visible!important;filter:drop-shadow(0 2px 3px #0008)!important}
+#actions .action small{font-size:8px!important;font-weight:950!important;letter-spacing:.45px!important;line-height:1.05!important;color:#f8fafb!important}
+#actions #run.held{border-color:#f6d68e!important;background:radial-gradient(circle at 32% 20%,#9d7840,#242b31 75%)!important;box-shadow:0 0 0 3px #edc87555,0 5px 18px #000b!important}
+#actions .action:active{filter:brightness(1.32)!important;transform:scale(.94)!important}
+@media(max-width:420px){body:not(.driver-mode):not(.passenger-mode) #actions{width:128px!important;grid-template-columns:repeat(2,60px)!important;grid-template-rows:repeat(2,60px)!important;gap:7px!important}body:not(.driver-mode):not(.passenger-mode) #actions .action,body:not(.driver-mode):not(.passenger-mode) #actions #interact{width:60px!important;height:60px!important;min-width:60px!important;max-width:60px!important}#actions .action .control-svg{width:37px!important;height:37px!important}#joystick{width:49vw!important;height:72dvh!important}}
+@media(max-height:430px){#joystick{height:74dvh!important;min-height:220px!important}body:not(.driver-mode):not(.passenger-mode) #actions{bottom:8px!important;grid-template-rows:repeat(2,58px)!important}body:not(.driver-mode):not(.passenger-mode) #actions .action,body:not(.driver-mode):not(.passenger-mode) #actions #interact{height:58px!important;width:58px!important;min-width:58px!important;max-width:58px!important}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
@@ -437,21 +459,20 @@ body.passenger-mode #actions #carControls #carExit{width:110px!important;height:
     <button id="interact" class="action roundAction" type="button" aria-label="Interact"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M20 34V18a4 4 0 0 1 8 0v12-17a4 4 0 0 1 8 0v17-14a4 4 0 0 1 8 0v17-8a4 4 0 0 1 8 0v17c0 11-7 17-18 17h-4c-7 0-12-4-16-10l-7-10a4 4 0 0 1 6-5z"/><path d="M21 46l-5-7"/></svg><small>INTERACT</small></button>
     <div id="actionGrid">
       <button id="punch" class="action roundAction" type="button" aria-label="Punch"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M10 32c0-4 5-6 8-3l4 3v-9c0-6 8-7 9-1l1 5v-9c0-6 8-6 9 0v8l2-5c2-5 9-3 8 2l-1 9 3-3c4-3 8 1 6 5l-7 17c-2 5-7 8-13 8H28c-7 0-12-3-15-9l-5-12c-1-3 0-6 2-6z" fill="#e9eef1" stroke="#101a22" stroke-width="2.7" stroke-linejoin="round"/>
-        <path d="M23 29v8m9-9v10m9-9v9m8-6v7" fill="none" stroke="#687780" stroke-width="2.6" stroke-linecap="round"/>
-        <path d="M10 17l-5-4m12-5l-2-5m38 12l5-5" fill="none" stroke="#e5b45d" stroke-width="3" stroke-linecap="round"/>
-      </svg><small>PUNCH</small></button>
+  <path d="M12 34c0-4 4-7 8-4l5 3v-9c0-6 8-7 9-1l1 5v-9c0-6 8-6 9 0v8l3-5c3-4 9-2 8 3l-1 9 3-3c4-3 8 1 6 5l-7 16c-2 5-7 8-13 8H28c-7 0-12-3-15-9l-4-11c-1-3 0-5 3-6z" fill="#eaf0f3" stroke="#101a22" stroke-width="2.8" stroke-linejoin="round"/>
+  <path d="M25 29v8m10-9v10m9-9v9m8-6v7" fill="none" stroke="#65747d" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M9 18l-5-4m13-4l-2-6m42 15l4-5" fill="none" stroke="#e6b65f" stroke-width="3" stroke-linecap="round"/>
+</svg><small>PUNCH</small></button>
       <button id="run" class="action roundAction" type="button" aria-label="Run"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="42" cy="9" r="5.2" fill="#f1c36d" stroke="none"/>
-        <path d="M33 18l9 5 7 1 6 7-12 1-9-4-7 9 9 7-3 12M31 35L20 47 10 51M30 27l-10 5-8 0" fill="none" stroke="#f3f6f8" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M41 44l10 7-2 7M8 20h10M5 28h10M49 17l8-5" fill="none" stroke="#e5b45d" stroke-width="3.2" stroke-linecap="round"/>
-      </svg><small>RUN</small></button>
+  <circle cx="40" cy="9" r="5.5" fill="#f2c875" stroke="none"/>
+  <path d="M31 18l9 6 8 1 7 7-13 1-9-5-7 10 10 7-3 12M29 33L19 47 9 51M30 27l-11 5-8 0M39 44l10 8-1 6" fill="none" stroke="#f4f7f9" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M7 18h10M4 26h10M49 16l8-5" fill="none" stroke="#e6b65f" stroke-width="3.2" stroke-linecap="round"/>
+</svg><small>RUN</small></button>
       <button id="jump" class="action roundAction" type="button" aria-label="Jump"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="32" cy="11" r="5.2" fill="#f1c36d" stroke="none"/>
-        <path d="M30 19l-5 11 8 5 8-7 9 2M26 24l-9-8m16 19l-10 10-10 1m20-10l10 9-2 9" fill="none" stroke="#f3f6f8" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M8 18C12 8 21 3 31 3M21 3l10 0-4 8M48 14c5 5 8 12 8 19" fill="none" stroke="#e5b45d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M47 28l9 5-8 5" fill="none" stroke="#e5b45d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg><small>JUMP</small></button>
+  <circle cx="31" cy="13" r="5.4" fill="#f2c875" stroke="none"/>
+  <path d="M29 21l-5 11 10 5 8-8 9 2M25 28l-9-8m18 17L23 48l-3 9m13-12l12 6 5 8" fill="none" stroke="#f4f7f9" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31 9V2m-6 6l6-6 6 6M49 17c5 5 8 12 8 19m-9-7l9 7 5-9" fill="none" stroke="#e6b65f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><small>JUMP</small></button>
     </div>
     <div id="carControls" style="display:none">
       <button id="carAccelerate" type="button" aria-label="Accelerator pedal"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M15 10h34l8 46H7z" fill="#283944"/><path d="M22 17h20l6 34H16z" fill="#7d8d96"/><path d="M30 6c-2 7-2 12 1 18l-6 7c-3 4-1 8 4 9l7 1c5 1 9-3 8-7l-4-11c-2-5-6-11-10-17z" fill="#eef3f7" stroke="#101a22" stroke-width="2.5"/><path d="M31 38l12 3" stroke="#d6a95f" stroke-width="3" stroke-linecap="round"/></svg><small>ACCELERATE</small></button>
@@ -625,7 +646,7 @@ let running=false;
 let paused=true;
 let runHeld=false;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carHandbrakeHeld=false,carSpeed=0;let carWheelSpin=0;
 let stickX=0,stickY=0;
-let jumpPressed=false;
+let jumpPressed=false,jumpRunning=false,jumpAirCarry=0,jumpDirX=0,jumpDirZ=1,jumpLandTimer=0,jumpLandWasSprint=false;
 let punchTimer=0;
 let shieldTimer=0;
 let speedTimer=0;
@@ -2016,7 +2037,14 @@ function punch(){
 }
 function jump(longJump=false){
  if(player.inCar||player.y>.03||playerDownTimer>0||pendingVehicleEntry)return;
- player.vy=longJump?5.15:4.75;jumpBoostTimer=longJump ? .34 : 0;jumpPressed=true;
+ const push=Math.min(1,Math.hypot(stickX,stickY));
+ const sprintLeap=!!longJump||(runHeld&&push>.42);
+ jumpRunning=sprintLeap;jumpLandTimer=0;jumpLandWasSprint=false;
+ jumpDirX=Math.sin(player.yaw);jumpDirZ=Math.cos(player.yaw);
+ player.vy=sprintLeap?7.15:(push>.12?6.5:6.15);
+ jumpBoostTimer=sprintLeap?.62:(push>.12?.28:0);
+ jumpAirCarry=sprintLeap?5.1:(push>.12?2.2:0);
+ jumpPressed=true;
 }
 function useSlot(){
   const gadgets=['PULSE SHIELD','SPEED BURST','GPS PING'];
@@ -2223,16 +2251,27 @@ function render(time){
   if(!isBlocked(nx,nz)){player.x=nx;player.z=nz;}player.yaw=Math.atan2(mx,mz);
  }
  if(jumpBoostTimer>0){
-  if(mag<=.08){player.x+=Math.sin(player.yaw)*1.55*dt;player.z+=Math.cos(player.yaw)*1.55*dt;}
+  if(analogThrottle<=.05){
+   const carryRatio=Math.max(0,jumpBoostTimer/(jumpRunning?.62:.28));
+   const carry=jumpAirCarry*carryRatio;
+   const nx=player.x+jumpDirX*carry*dt,nz=player.z+jumpDirZ*carry*dt;
+   if(!isBlocked(nx,nz)){player.x=nx;player.z=nz;}
+  }
   jumpBoostTimer=Math.max(0,jumpBoostTimer-dt);
+  if(jumpBoostTimer<=0)jumpAirCarry=0;
  }
  }
     updateStage3Simulation(dt);
     if(!player.inCar){
-      player.vy-=17*dt;if(player.y<=0)jumpPressed=false;
+      const wasAirborne=player.y>.03;
+      player.vy-=19*dt;
       player.y+=player.vy*dt;
-      if(player.y<0){player.y=0;player.vy=0;}
+      if(player.y<0){
+        if(wasAirborne){jumpLandTimer=jumpRunning?.34:.26;jumpLandWasSprint=jumpRunning;}
+        player.y=0;player.vy=0;jumpPressed=false;jumpRunning=false;jumpBoostTimer=0;jumpAirCarry=0;
+      }
     }
+    if(jumpLandTimer>0)jumpLandTimer=Math.max(0,jumpLandTimer-dt);
     if(vehicleExitTimer>0)vehicleExitTimer=Math.max(0,vehicleExitTimer-dt);
     if(punchTimer>0)punchTimer=Math.max(0,punchTimer-dt);
     if(shieldTimer>0)shieldTimer=Math.max(0,shieldTimer-dt);
@@ -2295,39 +2334,55 @@ window.__DINDU3D_LINK__ = {
     vehicleExiting:vehicleExitTimer>0,
     running:runHeld || (player.inCar&&Math.abs(carSpeed)>6.5),
     moveAmount:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
-    jumping:player.y>.06,punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
+    jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/.34):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
+    punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
     playerDown:playerDownTimer>0 || playerHealth<=0,carSpeed,carWheelSpin
   };},
   get vehicleAction(){return vehicleDoorAction;}
 };
 requestAnimationFrame(render);
 
-// Joystick touch input.
+// DINDU V7 DYNAMIC LEFT-SIDE ANALOGUE: invisible touch zone, visible only while pressed.
 const joy=document.getElementById('joystick');
 const stick=document.getElementById('stick');
-let joyPointer=null;
+let joyPointer=null,joyCenterX=0,joyCenterY=0,joyMax=76;
 function setStick(e){
   const r=joy.getBoundingClientRect();
-  const cx=r.left+r.width/2,cy=r.top+r.height/2;
-  let dx=e.clientX-cx,dy=e.clientY-cy;
-  const max=Math.max(1,Math.min(r.width,r.height)*.27),len=Math.hypot(dx,dy)||1;
-  if(len>max){dx=dx/len*max;dy=dy/len*max;}
-  stickX=-dx/max;stickY=dy/max;
-  stick.style.transform='translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px))';
+  let dx=e.clientX-joyCenterX,dy=e.clientY-joyCenterY;
+  const len=Math.hypot(dx,dy)||1;
+  if(Math.hypot(dx,dy)>6)joy.classList.add('active');else joy.classList.remove('active');
+  if(len>joyMax){dx=dx/len*joyMax;dy=dy/len*joyMax;}
+  stickX=-dx/joyMax;stickY=dy/joyMax;
+  stick.style.left=(joyCenterX-r.left+dx)+'px';
+  stick.style.top=(joyCenterY-r.top+dy)+'px';
+  stick.style.transform='translate(-50%,-50%)';
 }
 joy.addEventListener('pointerdown',e=>{
+  if(joyPointer!==null)return;
   e.preventDefault();const tapNow=performance.now();
   if(!player.inCar&&tapNow-joyTapAt<340){sneakMode=!sneakMode;showToast(sneakMode?'STEALTH MODE ON':'STEALTH MODE OFF');joyTapAt=0;}
   else joyTapAt=tapNow;
-  joyPointer=e.pointerId;joy.setPointerCapture(e.pointerId);setStick(e);
+  const r=joy.getBoundingClientRect();
+  joyMax=Math.min(88,Math.max(64,Math.min(innerWidth,innerHeight)*.17));
+  joyCenterX=Math.max(r.left+joyMax,Math.min(r.right-joyMax,e.clientX));
+  joyCenterY=Math.max(r.top+joyMax,Math.min(r.bottom-joyMax,e.clientY));
+  joy.style.setProperty('--joy-base-x',(joyCenterX-r.left)+'px');
+  joy.style.setProperty('--joy-base-y',(joyCenterY-r.top)+'px');
+  joy.style.setProperty('--joy-size',(joyMax*2)+'px');
+  joyPointer=e.pointerId;
+  try{joy.setPointerCapture(e.pointerId);}catch(_){}
+  setStick(e);
 });
 joy.addEventListener('pointermove',e=>{if(e.pointerId===joyPointer)setStick(e);});
 function releaseJoy(e){
   if(e.pointerId!==joyPointer)return;
-  joyPointer=null;stickX=0;stickY=0;stick.style.transform='translate(-50%,-50%)';
+  joyPointer=null;stickX=0;stickY=0;joy.classList.remove('active');
+  stick.style.left='0px';stick.style.top='0px';stick.style.transform='translate(-50%,-50%)';
+  joy.style.removeProperty('--joy-base-x');joy.style.removeProperty('--joy-base-y');
 }
 joy.addEventListener('pointerup',releaseJoy);
 joy.addEventListener('pointercancel',releaseJoy);
+joy.addEventListener('lostpointercapture',releaseJoy);
 
 // Camera swipe, pinch zoom and hold-to-look-back.
 const cameraPointers=new Map();
@@ -2680,27 +2735,39 @@ showToast('Tap ENTER DINDU CITY to begin.');
        shadow.scale.set(.26,.42,1);
        shadow.renderOrder=-1;
        scene.add(shadow);
-       // Save the imported rig's neutral standing pose before any walk/run clip is applied.
+       // Bring the imported rig's hip spacing closer to a relaxed human standing stance.
+       model.traverse(o=>{
+         if(!o.isBone)return;
+         const name=o.name.toLowerCase();
+         if(/upleg|upperleg|thigh/.test(name))o.position.x*=.76;
+       });
        const restPose=[];
        model.traverse(o=>{
          if(o.isBone)restPose.push({bone:o,position:o.position.clone(),quaternion:o.quaternion.clone(),scale:o.scale.clone()});
        });
        const mixer=new THREE.AnimationMixer(model);
-      const clips=playerGLTF.animations||[];
-      const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
-      const actions={idle:find(/idle|stand/i),walk:find(/walk/i),run:find(/run/i),jump:find(/jump/i),punch:find(/punch|attack|fight/i),enter:find(/enter|vehicle.?in|car.?in|get.?in/i),exit:find(/exit|vehicle.?out|car.?out|get.?out/i),mixer,active:null};
-      const breathBones=[],armBones=[],legBones=[];
-      model.traverse(o=>{
-        if(!o.isBone)return;
-        if(/spine|chest|neck/i.test(o.name))breathBones.push({bone:o,x:o.rotation.x,z:o.rotation.z});
-        if(/upperarm|arm|shoulder/i.test(o.name))armBones.push({bone:o,x:o.rotation.x,z:o.rotation.z,left:/left|_l\b/i.test(o.name)});
-        if(/thigh|upperleg|upleg|calf|lowerleg/i.test(o.name))legBones.push({bone:o,x:o.rotation.x,z:o.rotation.z,left:/left|_l\b/i.test(o.name)});
-      });
-      // Use a true idle clip only when the asset supplies one. This model currently has
-      // walk/run clips only, so leave it in its neutral rig pose while standing.
-      const initial=actions.idle;
-      if(initial){initial.play();actions.active=initial;}
-      return {group,shadow,actions,breathBones,armBones,legBones,restPose};
+       const clips=playerGLTF.animations||[];
+       const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
+       const actions={idle:find(/idle|stand/i),walk:find(/walk/i),run:find(/run/i),jump:find(/jump/i),punch:find(/punch|attack|fight/i),enter:find(/enter|vehicle.?in|car.?in|get.?in/i),exit:find(/exit|vehicle.?out|car.?out|get.?out/i),mixer,active:null};
+       const breathBones=[],armBones=[],legBones=[],headBones=[];
+       model.traverse(o=>{
+         if(!o.isBone)return;
+         const name=o.name.toLowerCase(),left=/left|_l\b/.test(name);
+         if(/spine|chest/.test(name))breathBones.push({bone:o,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z});
+         if(/upperarm|forearm|lowerarm|arm|shoulder|hand|wrist/.test(name)){
+           armBones.push({bone:o,name,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,left,
+             upper:/upperarm|shoulder|arm$/.test(name),fore:/forearm|lowerarm/.test(name),hand:/hand|wrist/.test(name)});
+         }
+         if(/thigh|upperleg|upleg|calf|lowerleg|shin|foot/.test(name)){
+           legBones.push({bone:o,name,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,left,
+             upper:/thigh|upperleg|upleg/.test(name),lower:/calf|lowerleg|shin|leg$/.test(name),foot:/foot/.test(name)});
+         }
+         if(/neck|head/.test(name))headBones.push({bone:o,name,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,neck:/neck/.test(name)});
+       });
+       const initial=actions.idle;
+       if(initial){initial.play();actions.active=initial;}
+       return {group,shadow,actions,breathBones,armBones,legBones,headBones,restPose,
+         idleWait:5,idleGesture:null,idleProgress:0,idleIndex:0,idleSide:1};
     };
     const switchAction=(actions,next,freeze=false,restPose=null)=>{
       if(!next){
@@ -2844,6 +2911,15 @@ showToast('Tap ENTER DINDU CITY to begin.');
        }
        addMesh(new THREE.BoxGeometry(1.42,.045,.28),black,0,.285,-2.23);
        for(const side of [-1,1])addMesh(new THREE.BoxGeometry(.22,.08,.20),black,side*.57,.30,-2.28);
+       // Flush door seams, metal handles and small side repeaters finish the sedan body.
+       for(const side of [-1,1]){
+         addMesh(new THREE.BoxGeometry(.018,.34,.025),black,side*.94,.61,.48);
+         addMesh(new THREE.BoxGeometry(.018,.32,.025),black,side*.94,.61,-.72);
+         addMesh(new THREE.BoxGeometry(.14,.035,.045),chrome,side*.965,.84,.12);
+         addMesh(new THREE.BoxGeometry(.13,.035,.045),chrome,side*.965,.84,-.83);
+         addMesh(new THREE.BoxGeometry(.035,.09,.22),satin,side*.94,.60,1.55);
+       }
+       addMesh(new THREE.BoxGeometry(.30,.025,.035),chrome,0,.63,-2.34);
 
        // Hinged bonnet with an engine bay containing recognizable engine parts.
        const bonnetPivot=new THREE.Group();bonnetPivot.position.set(0,.89,1.16);group.add(bonnetPivot);
@@ -2887,7 +2963,14 @@ showToast('Tap ENTER DINDU CITY to begin.');
        hose([[-.42,.70,1.82],[-.32,.63,1.92],[-.18,.66,2.04]],.022,hoseMat);
        addMesh(new THREE.BoxGeometry(.18,.10,.25),engineTop,.28,.61,1.22,engineBay);
        addMesh(new THREE.CylinderGeometry(.045,.045,.04,12),redCap,.28,.68,1.22,engineBay);
-       group.add(engineBay);engineBay.visible=false;
+        // Belt drive, alternator housing, intake and oil filler give the open bay more depth.
+        const pulley=addMesh(new THREE.CylinderGeometry(.095,.095,.055,20),engineMetal,.49,.60,1.28,engineBay);pulley.rotation.z=Math.PI/2;
+        const pulleyHub=addMesh(new THREE.CylinderGeometry(.035,.035,.065,16),black,.49,.60,1.28,engineBay);pulleyHub.rotation.z=Math.PI/2;
+        addMesh(new THREE.BoxGeometry(.30,.18,.30),engineTop,.38,.69,1.40,engineBay);
+        addMesh(new THREE.CylinderGeometry(.052,.052,.035,14),redCap,.38,.795,1.40,engineBay);
+        addMesh(new THREE.BoxGeometry(.38,.10,.24),black,-.31,.83,1.48,engineBay);
+        addBar([-.40,.78,1.67],[-.26,.78,1.55],.025,hoseMat,engineBay);
+        group.add(engineBay);engineBay.visible=false;
 
        // Hinged rear trunk with carpet, spare wheel, rim, jack and tool storage.
        const trunkPivot=new THREE.Group();trunkPivot.position.set(0,.86,-1.28);group.add(trunkPivot);
@@ -2903,7 +2986,14 @@ showToast('Tap ENTER DINDU CITY to begin.');
        addMesh(new THREE.BoxGeometry(.22,.055,.06),chrome,.39,.73,-1.69,trunkBay);
        addMesh(new THREE.BoxGeometry(.22,.08,.34),black,.39,.55,-1.24,trunkBay);
        addMesh(new THREE.BoxGeometry(.18,.035,.29),chrome,.39,.61,-1.24,trunkBay);
-       group.add(trunkBay);trunkBay.visible=false;
+        // Spare-wheel retaining strap, carpeted tool pouch and boot courtesy light.
+        const strapMat=new THREE.MeshStandardMaterial({color:0x6d7477,roughness:.86});
+        addMesh(new THREE.BoxGeometry(.035,.028,.48),strapMat,-.38,.775,-1.69,trunkBay);
+        addMesh(new THREE.BoxGeometry(.42,.05,.26),cabinTrim,.39,.72,-1.67,trunkBay);
+        addMesh(new THREE.BoxGeometry(.16,.035,.045),chrome,.39,.755,-1.67,trunkBay);
+        const bootLamp=new THREE.MeshStandardMaterial({color:0xf2e5b8,emissive:0x8c7950,emissiveIntensity:.5});
+        addMesh(new THREE.BoxGeometry(.16,.035,.045),bootLamp,0,.61,-2.05,trunkBay);
+        group.add(trunkBay);trunkBay.visible=false;
 
       // Four animated doors and four independent side windows that drop together.
       function addDoor(seat,side,hingeZ,depth){
@@ -3013,26 +3103,71 @@ const playerActor=makeHuman(false);
       camera.lookAt(p.x,y,p.z);
       camera.updateMatrixWorld();
     }
-    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false){
-      const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
-      // The GLB walk/run clips animate the full rig. Do not write rest-pose joint
-      // rotations over those clips: that was cancelling the natural stride.
-      if(locomotionClip){
-        actor.group.scale.y=sneaking ? .97 : 1;
-        return;
+    const idleGestureOrder=['look','scratch','fold','collar'];
+    function updateIdleGesture(actor,dt,eligible){
+      if(!eligible){actor.idleWait=5;actor.idleGesture=null;actor.idleProgress=0;return null;}
+      if(actor.idleGesture){
+        actor.idleProgress=Math.min(1,actor.idleProgress+dt/2.15);
+        const pose={name:actor.idleGesture,weight:Math.sin(Math.PI*actor.idleProgress),side:actor.idleSide};
+        if(actor.idleProgress>=1){actor.idleGesture=null;actor.idleWait=2.35+(actor.idleIndex%3)*.45;}
+        return pose;
       }
+      actor.idleWait-=dt;
+      if(actor.idleWait<=0){
+        actor.idleGesture=idleGestureOrder[actor.idleIndex%idleGestureOrder.length];
+        actor.idleSide=actor.idleIndex%2===0?1:-1;
+        actor.idleIndex++;actor.idleProgress=0;
+      }
+      return null;
+    }
+    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,idle=null){
+      const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
+      const jumpClip=actor.actions.active===actor.actions.jump;
+      if(locomotionClip||jumpClip){actor.group.scale.y=sneaking?.97:1;return;}
       const breath=Math.sin(t*2.15)*.012;
       for(const entry of actor.breathBones||[]){
-        entry.bone.rotation.x=entry.x+(!moving?breath:0);
-        entry.bone.rotation.z=entry.z+(!moving?Math.sin(t*1.2)*.006:0);
+        entry.bone.rotation.set(entry.x+(!moving?breath:0),entry.y,entry.z+(!moving?Math.sin(t*1.2)*.006:0));
       }
       const swing=punching?Math.sin(Math.max(0,1-punchTime/.58)*Math.PI):0;
-      const jumpLift=jumping?1:0;
+      const jumpLift=jumping?Math.min(1,Math.max(.18,jumpHeight/1.18)):0;
+      const land=Math.max(0,Math.min(1,landingWeight));
       for(const entry of actor.armBones||[]){
-        entry.bone.rotation.x=entry.x+(punching?swing*(entry.left?-.85:.85):0);
-        entry.bone.rotation.z=entry.z+(punching?swing*(entry.left ? .45 : -.45):0)+(jumping?(entry.left?-.28:.28):0);
+        let x=entry.x,y=entry.y,z=entry.z;
+        if(punching){x+=swing*(entry.left?-.85:.85);z+=swing*(entry.left?.45:-.45);}
+        if(jumping){
+          const side=entry.left?1:-1;
+          if(entry.upper){z+=side*(sprintJump?.95:.72)*jumpLift;x-=sprintJump?.20:.10;}
+          else if(entry.fore){x-=(sprintJump?1.25:.92)*jumpLift;z+=side*.12*jumpLift;}
+          else if(entry.hand)x-=.12*jumpLift;
+        }
+        if(land>0){if(entry.upper){x+=.36*land;z+=(entry.left?1:-1)*.16*land;}else if(entry.fore)x-=.42*land;}
+        if(idle&&idle.weight>0){
+          const w=idle.weight,side=entry.left?1:-1,selectedLeft=idle.side<0;
+          if(idle.name==='scratch'&&entry.left===selectedLeft){
+            if(entry.upper){z+=side*1.18*w;x-=.28*w;}else if(entry.fore){x-=1.35*w;z+=side*.12*w;}else if(entry.hand)x-=.18*w;
+          }else if(idle.name==='fold'){
+            if(entry.upper){z+=side*.58*w;x+=.24*w;}else if(entry.fore){x-=1.02*w;y+=(entry.left?.46:-.46)*w;}
+          }else if(idle.name==='collar'&&entry.left===selectedLeft){
+            if(entry.upper){z+=side*.70*w;x+=.12*w;}else if(entry.fore){x-=1.05*w;y-=side*.14*w;}else if(entry.hand)x-=.12*w;
+          }
+        }
+        entry.bone.rotation.set(x,y,z);
       }
-      for(const entry of actor.legBones||[])entry.bone.rotation.x=entry.x+(jumpLift?(entry.left?-.42:.42):0);
+      for(const entry of actor.legBones||[]){
+        let x=entry.x;
+        if(jumping){if(entry.upper)x+=(sprintJump?.62:.44)*jumpLift;else if(entry.lower)x-=(sprintJump?.92:.68)*jumpLift;else if(entry.foot)x+=(sprintJump?.18:.10)*jumpLift;}
+        if(land>0){if(entry.upper)x+=.30*land;else if(entry.lower)x-=.48*land;}
+        entry.bone.rotation.set(x,entry.y,entry.z);
+      }
+      for(const entry of actor.headBones||[]){
+        let x=entry.x,y=entry.y,z=entry.z;
+        if(idle&&idle.weight>0){
+          if(idle.name==='look')y+=idle.side*.30*idle.weight;
+          if(idle.name==='scratch'){x+=.07*idle.weight;y+=idle.side*.08*idle.weight;}
+          if(idle.name==='collar')x+=.035*idle.weight;
+        }
+        entry.bone.rotation.set(x,y,z);
+      }
       actor.group.scale.y=sneaking ? .93 : 1;
     }
     function updateDoor(actor,action,car,dt){
@@ -3068,6 +3203,7 @@ const playerActor=makeHuman(false);
       const p=link.player,a=link.animationState,t=performance.now()*.001;
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
+       const idlePose=updateIdleGesture(playerActor,dt,!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.vehicleEntering&&!a.vehicleExiting&&!a.playerDown&&!a.running);
        playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y+(a.sneaking?-.07:0),p.z);
        if(visualPlayerYaw===null)visualPlayerYaw=p.yaw||0;
        const turnDelta=Math.atan2(Math.sin((p.yaw||0)-visualPlayerYaw),Math.cos((p.yaw||0)-visualPlayerYaw));
@@ -3089,7 +3225,7 @@ const playerActor=makeHuman(false);
        if(playerActor.actions.walk)playerActor.actions.walk.timeScale=.38+.82*stride;
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
-      applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping);
+       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,idlePose);
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
         const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
