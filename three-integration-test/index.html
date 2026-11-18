@@ -385,6 +385,13 @@ body.passenger-mode #actions #carControls #carExit{width:110px!important;height:
  #vehicleChoices button:after{font-size:6px}
 }
 
+
+/* DINDU GTA V6 — clearer action glyphs and responsive sprint feedback */
+#actions .action .control-svg{width:clamp(27px,5.2vw,36px)!important;height:clamp(27px,5.2vw,36px)!important;overflow:visible!important;stroke-linecap:round!important;stroke-linejoin:round!important}
+#actions #run .control-svg circle,#actions #jump .control-svg circle{fill:#f1c36d!important;stroke:none!important}
+#actions #punch .control-svg path:first-child{fill:#e9eef1!important;stroke:#101a22!important}
+#actions #run.held{border-color:#f5d48d!important;background:radial-gradient(circle at 32% 20%,#8a7044,#17232d 76%)!important;box-shadow:0 0 0 2px #edc87552,0 4px 15px #000b,inset 0 1px 3px #fff5!important}
+#actions #run.held .control-svg{filter:drop-shadow(0 0 4px #efc36d88)!important}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
@@ -429,9 +436,22 @@ body.passenger-mode #actions #carControls #carExit{width:110px!important;height:
 
     <button id="interact" class="action roundAction" type="button" aria-label="Interact"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M20 34V18a4 4 0 0 1 8 0v12-17a4 4 0 0 1 8 0v17-14a4 4 0 0 1 8 0v17-8a4 4 0 0 1 8 0v17c0 11-7 17-18 17h-4c-7 0-12-4-16-10l-7-10a4 4 0 0 1 6-5z"/><path d="M21 46l-5-7"/></svg><small>INTERACT</small></button>
     <div id="actionGrid">
-      <button id="punch" class="action roundAction" type="button" aria-label="Punch"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34l10-8 6 4 2-12c1-5 8-5 9 0l1 6 3-10c1-5 8-4 8 1l-1 10 4-6c3-4 9-1 7 4l-8 20c-2 6-8 10-15 10H26c-6 0-11-3-14-8l-5-7c-2-3 0-8 3-4z" fill="#eef3f7" stroke="#101a22" stroke-width="2.5"/><path d="M26 29l1 8m9-16l-1 12m10-13l-2 13m-21 7l20 1" fill="none" stroke="#63717b" stroke-width="2.4" stroke-linecap="round"/></svg><small>PUNCH</small></button>
-      <button id="run" class="action roundAction" type="button" aria-label="Run"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><circle cx="39" cy="10" r="6"/><path d="M30 21l10 7 10 1 4 7-15-1-8-5-7 10 10 7-3 13-7-1 1-10-13-8 10-17-9 7-8 1-2-6 12-3z"/><path d="M17 55l-6 5m34-5l8 4"/></svg><small>RUN</small></button>
-      <button id="jump" class="action roundAction" type="button" aria-label="Jump"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><circle cx="33" cy="11" r="5" fill="#eef3f7" stroke="#101a22" stroke-width="2.4"/><path d="M30 19l-5 9 9 6 8-8 8 2 4 7-13-1-9 8-9-5-7 8-5-3 10-15-9-6 3-5 14 9 7-8" fill="#eef3f7" stroke="#101a22" stroke-width="2.4" stroke-linejoin="round"/><path d="M28 36l-3 13-9 5m20-12l10 8 1 7M14 8l-5-5m45 8l5-4M9 58h15m18 0h14" fill="none" stroke="#f1c36b" stroke-width="3" stroke-linecap="round"/><path d="M24 6l-5 5 7 1m17-6l6 5-7 2" fill="none" stroke="#f1c36b" stroke-width="2.6" stroke-linecap="round"/></svg><small>JUMP</small></button>
+      <button id="punch" class="action roundAction" type="button" aria-label="Punch"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M10 32c0-4 5-6 8-3l4 3v-9c0-6 8-7 9-1l1 5v-9c0-6 8-6 9 0v8l2-5c2-5 9-3 8 2l-1 9 3-3c4-3 8 1 6 5l-7 17c-2 5-7 8-13 8H28c-7 0-12-3-15-9l-5-12c-1-3 0-6 2-6z" fill="#e9eef1" stroke="#101a22" stroke-width="2.7" stroke-linejoin="round"/>
+        <path d="M23 29v8m9-9v10m9-9v9m8-6v7" fill="none" stroke="#687780" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M10 17l-5-4m12-5l-2-5m38 12l5-5" fill="none" stroke="#e5b45d" stroke-width="3" stroke-linecap="round"/>
+      </svg><small>PUNCH</small></button>
+      <button id="run" class="action roundAction" type="button" aria-label="Run"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="42" cy="9" r="5.2" fill="#f1c36d" stroke="none"/>
+        <path d="M33 18l9 5 7 1 6 7-12 1-9-4-7 9 9 7-3 12M31 35L20 47 10 51M30 27l-10 5-8 0" fill="none" stroke="#f3f6f8" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M41 44l10 7-2 7M8 20h10M5 28h10M49 17l8-5" fill="none" stroke="#e5b45d" stroke-width="3.2" stroke-linecap="round"/>
+      </svg><small>RUN</small></button>
+      <button id="jump" class="action roundAction" type="button" aria-label="Jump"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="11" r="5.2" fill="#f1c36d" stroke="none"/>
+        <path d="M30 19l-5 11 8 5 8-7 9 2M26 24l-9-8m16 19l-10 10-10 1m20-10l10 9-2 9" fill="none" stroke="#f3f6f8" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 18C12 8 21 3 31 3M21 3l10 0-4 8M48 14c5 5 8 12 8 19" fill="none" stroke="#e5b45d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M47 28l9 5-8 5" fill="none" stroke="#e5b45d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg><small>JUMP</small></button>
     </div>
     <div id="carControls" style="display:none">
       <button id="carAccelerate" type="button" aria-label="Accelerator pedal"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M15 10h34l8 46H7z" fill="#283944"/><path d="M22 17h20l6 34H16z" fill="#7d8d96"/><path d="M30 6c-2 7-2 12 1 18l-6 7c-3 4-1 8 4 9l7 1c5 1 9-3 8-7l-4-11c-2-5-6-11-10-17z" fill="#eef3f7" stroke="#101a22" stroke-width="2.5"/><path d="M31 38l12 3" stroke="#d6a95f" stroke-width="3" stroke-linecap="round"/></svg><small>ACCELERATE</small></button>
@@ -2192,11 +2212,12 @@ function render(time){
        }
       }
      }else if(!pendingVehicleEntry){
- const mag=Math.hypot(stickX,stickY);
- if(mag>.08){
+ const mag=Math.min(1,Math.hypot(stickX,stickY));
+ const analogThrottle=Math.max(0,Math.min(1,(mag-.075)/.925));
+ if(analogThrottle>.001){
   const fx=Math.sin(cameraYaw),fz=Math.cos(cameraYaw),rx=Math.cos(cameraYaw),rz=-Math.sin(cameraYaw);
   const mx=fx*(-stickY)+rx*stickX,mz=fz*(-stickY)+rz*stickX,len=Math.hypot(mx,mz)||1;
-  let speed=(sneakMode?1.75:(runHeld?5.9:2.85))*(speedTimer>0?1.25:1);
+  let speed=(sneakMode?1.9:(runHeld?8.8:4.35))*analogThrottle*(speedTimer>0?1.2:1);
   if(jumpBoostTimer>0)speed*=1.12;
   const nx=player.x+(mx/len)*speed*dt,nz=player.z+(mz/len)*speed*dt;
   if(!isBlocked(nx,nz)){player.x=nx;player.z=nz;}player.yaw=Math.atan2(mx,mz);
@@ -2270,9 +2291,10 @@ window.__DINDU3D_LINK__ = {
     distance:cameraActualDistance
   };},
   get animationState(){return {
-    moving:player.y<.06&&Math.hypot(stickX,stickY)>.08 || (player.inCar&&Math.abs(carSpeed)>.08) || vehicleExitTimer>0,
+    moving:player.y<.06&&Math.hypot(stickX,stickY)>.075 || (player.inCar&&Math.abs(carSpeed)>.08) || vehicleExitTimer>0,
     vehicleExiting:vehicleExitTimer>0,
     running:runHeld || (player.inCar&&Math.abs(carSpeed)>6.5),
+    moveAmount:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
     jumping:player.y>.06,punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
     playerDown:playerDownTimer>0 || playerHealth<=0,carSpeed,carWheelSpin
   };},
@@ -2426,10 +2448,10 @@ document.getElementById('vehicleIndicatorRight').addEventListener('pointerdown',
 document.getElementById('vehicleWindows').addEventListener('pointerdown',e=>{e.preventDefault();const car=currentPlayerVehicle();if(car){car.windowsOpen=!car.windowsOpen;updateVehicleDashboard();}});
 const runButton=document.getElementById('run');
 runButton.addEventListener('pointerdown',e=>{
- e.preventDefault();const tapNow=performance.now();if(!player.inCar&&tapNow-lastRunTap<360)jump(true);
- lastRunTap=tapNow;runHeld=true;
-});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>runButton.addEventListener(ev,()=>runHeld=false));
+  e.preventDefault();try{runButton.setPointerCapture(e.pointerId);}catch(_){}const tapNow=performance.now();if(!player.inCar&&tapNow-lastRunTap<360)jump(true);
+  lastRunTap=tapNow;runHeld=true;runButton.classList.add('held');
+ });
+ ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>runButton.addEventListener(ev,()=>{runHeld=false;runButton.classList.remove('held');}));
 document.getElementById('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
 document.getElementById('punch').addEventListener('pointerdown',e=>{e.preventDefault();punch();});
 document.getElementById('interact').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
@@ -2718,10 +2740,10 @@ showToast('Tap ENTER DINDU CITY to begin.');
         const mesh=new THREE.Mesh(geometry,material);
         mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
       }
-      function addBar(a,b,width,material){
+      function addBar(a,b,width,material,parent=group){
         const va=new THREE.Vector3(a[0],a[1],a[2]),vb=new THREE.Vector3(b[0],b[1],b[2]);
         const delta=new THREE.Vector3().subVectors(vb,va);
-        const mesh=addMesh(new THREE.BoxGeometry(width,width,delta.length()),material);
+        const mesh=addMesh(new THREE.BoxGeometry(width,width,delta.length()),material,0,0,0,parent);
         mesh.position.copy(va).add(vb).multiplyScalar(.5);
         mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),delta.normalize());
         return mesh;
@@ -2751,9 +2773,24 @@ showToast('Tap ENTER DINDU CITY to begin.');
       sideProfile.quadraticCurveTo(-2.36,.40,-2.31,.34);
       const shellGeometry=new THREE.ExtrudeGeometry(sideProfile,{depth:1.86,steps:1,bevelEnabled:true,bevelSegments:4,bevelSize:.055,bevelThickness:.055,curveSegments:12});
       shellGeometry.translate(0,0,-.93);shellGeometry.rotateY(-Math.PI/2);shellGeometry.computeVertexNormals();
-      addMesh(shellGeometry,paint);
+       addMesh(shellGeometry,paint);
 
-      // Roof, glazed cabin and structural pillars.
+       // Sculpted hood crown, pressed side character lines and four-door seams.
+       for(const side of [-1,1]){
+         addBar([side*.46,.925,1.02],[side*.54,.925,2.02],.025,satin);
+         addBar([side*.91,.58,-.98],[side*.91,.58,.98],.035,darkPaint);
+         addBar([side*.92,.48,-.72],[side*.92,.48,.63],.025,satin);
+         addMesh(new THREE.BoxGeometry(.045,.16,1.55),darkPaint,side*.932,.53,-.02);
+         addMesh(new THREE.BoxGeometry(.17,.035,.07),chrome,side*.955,.84,.16);
+         addMesh(new THREE.BoxGeometry(.13,.035,.07),chrome,side*.955,.84,-.82);
+       }
+       // Side glazing follows the sloped fastback roof instead of appearing as a flat box.
+       for(const side of [-1,1]){
+         quad([[side*.59,1.33,.34],[side*.59,1.33,-.12],[side*.77,.98,-.12],[side*.78,.98,.60]],glassMat);
+         quad([[side*.59,1.33,-.25],[side*.59,1.33,-.80],[side*.76,.98,-1.04],[side*.77,.98,-.25]],glassMat);
+       }
+
+       // Roof, glazed cabin and structural pillars.
       addMesh(new THREE.BoxGeometry(1.16,.105,1.58),paint,0,1.43,-.12);
       addMesh(new THREE.BoxGeometry(1.28,.055,1.45),darkPaint,0,1.37,-.12);
       for(const side of [-1,1]){
@@ -2797,24 +2834,76 @@ showToast('Tap ENTER DINDU CITY to begin.');
       }
       addMesh(new THREE.BoxGeometry(1.78,.12,.22),paint,0,.39,2.21);
       addMesh(new THREE.BoxGeometry(1.78,.12,.22),paint,0,.38,-2.21);
-      addMesh(new THREE.BoxGeometry(1.46,.045,.14),black,0,.29,0);
+       addMesh(new THREE.BoxGeometry(1.46,.045,.14),black,0,.29,0);
+       // Front splitter, recessed fog lamps and rear diffuser add finished road-car detail.
+       addMesh(new THREE.BoxGeometry(1.94,.055,.24),black,0,.285,2.23);
+       for(const side of [-1,1]){
+         const fog=new THREE.MeshStandardMaterial({color:0xd8e7f0,emissive:0x789bb4,emissiveIntensity:.22,roughness:.2});
+         addMesh(new THREE.CylinderGeometry(.075,.075,.035,18),fog,side*.72,.46,2.30).rotation.x=Math.PI/2;
+         addMesh(new THREE.BoxGeometry(.48,.035,.045),satin,side*.60,.92,-2.28);
+       }
+       addMesh(new THREE.BoxGeometry(1.42,.045,.28),black,0,.285,-2.23);
+       for(const side of [-1,1])addMesh(new THREE.BoxGeometry(.22,.08,.20),black,side*.57,.30,-2.28);
 
-      // Hinged bonnet and trunk with visible engine/luggage compartments.
-      const bonnetPivot=new THREE.Group();bonnetPivot.position.set(0,.89,1.16);group.add(bonnetPivot);
-      addMesh(new THREE.BoxGeometry(1.62,.055,1.04),paint,0,.015,.49,bonnetPivot);
-      addMesh(new THREE.BoxGeometry(1.48,.018,.88),darkPaint,0,-.025,.49,bonnetPivot);
-      const engineBay=new THREE.Group();
-      addMesh(new THREE.BoxGeometry(1.48,.10,.90),black,0,.57,1.63,engineBay);
-      addMesh(new THREE.BoxGeometry(.62,.32,.56),satin,0,.77,1.63,engineBay);
-      addMesh(new THREE.BoxGeometry(.40,.07,.32),black,0,.97,1.63,engineBay);
-      for(const side of [-1,1])addMesh(new THREE.CylinderGeometry(.04,.04,.54,10),chrome,side*.47,.76,1.64,engineBay).rotation.z=Math.PI/2;
-      group.add(engineBay);engineBay.visible=false;
-      const trunkPivot=new THREE.Group();trunkPivot.position.set(0,.86,-1.28);group.add(trunkPivot);
-      addMesh(new THREE.BoxGeometry(1.60,.055,.91),paint,0,.015,-.43,trunkPivot);
-      const trunkBay=new THREE.Group();
-      addMesh(new THREE.BoxGeometry(1.45,.08,.78),black,0,.55,-1.67,trunkBay);
-      const spare=new THREE.Mesh(new THREE.TorusGeometry(.27,.075,10,24),rubber);spare.rotation.x=Math.PI/2;spare.position.set(0,.72,-1.67);trunkBay.add(spare);
-      group.add(trunkBay);trunkBay.visible=false;
+       // Hinged bonnet with an engine bay containing recognizable engine parts.
+       const bonnetPivot=new THREE.Group();bonnetPivot.position.set(0,.89,1.16);group.add(bonnetPivot);
+       addMesh(new THREE.BoxGeometry(1.62,.055,1.04),paint,0,.015,.49,bonnetPivot);
+       addMesh(new THREE.BoxGeometry(1.48,.018,.88),darkPaint,0,-.025,.49,bonnetPivot);
+       for(const side of [-1,1])addMesh(new THREE.BoxGeometry(.035,.022,.72),satin,side*.55,-.006,.49,bonnetPivot);
+       const engineBay=new THREE.Group();
+       const engineTop=new THREE.MeshStandardMaterial({color:0x202b32,roughness:.62,metalness:.28});
+       const engineMetal=new THREE.MeshStandardMaterial({color:0x7b8589,roughness:.36,metalness:.78});
+       const hoseMat=new THREE.MeshStandardMaterial({color:0x111719,roughness:.88});
+       const redCap=new THREE.MeshStandardMaterial({color:0xb6322d,roughness:.45,metalness:.12});
+       const coolantMat=new THREE.MeshPhysicalMaterial({color:0xb9d3d0,roughness:.22,transparent:true,opacity:.82});
+       addMesh(new THREE.BoxGeometry(1.55,.10,1.02),black,0,.53,1.63,engineBay);
+       addMesh(new THREE.BoxGeometry(.78,.38,.76),engineTop,0,.75,1.62,engineBay);
+       addMesh(new THREE.BoxGeometry(.58,.085,.52),cabinTrim,0,.965,1.62,engineBay);
+       addMesh(new THREE.BoxGeometry(.34,.035,.42),engineMetal,0,1.022,1.62,engineBay);
+       for(let rib=0;rib<5;rib++)addMesh(new THREE.BoxGeometry(.018,.018,.43),chrome,-.20+rib*.10,1.016,1.62,engineBay);
+       // Radiator and twin cooling fans at the nose.
+       addMesh(new THREE.BoxGeometry(1.28,.25,.105),engineMetal,0,.64,2.08,engineBay);
+       for(const side of [-1,1]){
+         const fan=addMesh(new THREE.CylinderGeometry(.19,.19,.035,24),black,side*.34,.66,2.145,engineBay);fan.rotation.x=Math.PI/2;
+         const hub=addMesh(new THREE.CylinderGeometry(.055,.055,.045,16),chrome,side*.34,.66,2.17,engineBay);hub.rotation.x=Math.PI/2;
+         const tower=addMesh(new THREE.CylinderGeometry(.115,.13,.13,16),engineMetal,side*.66,.60,1.30,engineBay);
+         addMesh(new THREE.CylinderGeometry(.065,.065,.035,16),black,side*.66,.685,1.30,engineBay);
+       }
+       addBar([-.65,.78,1.30],[.65,.78,1.30],.045,chrome,engineBay);
+       // Battery, coolant reservoir, washer tank, caps and fluid hoses.
+       addMesh(new THREE.BoxGeometry(.28,.27,.32),black,-.59,.70,1.82,engineBay);
+       addMesh(new THREE.BoxGeometry(.19,.035,.22),engineTop,-.59,.855,1.82,engineBay);
+       addMesh(new THREE.CylinderGeometry(.045,.045,.035,12),redCap,-.66,.88,1.82,engineBay);
+       addMesh(new THREE.SphereGeometry(.14,12,10),coolantMat,.59,.79,1.78,engineBay);
+       addMesh(new THREE.CylinderGeometry(.055,.055,.045,12),redCap,.59,.94,1.78,engineBay);
+       addMesh(new THREE.SphereGeometry(.105,12,10),coolantMat,.64,.69,1.18,engineBay);
+       addMesh(new THREE.CylinderGeometry(.035,.035,.035,12),black,.64,.80,1.18,engineBay);
+       const hose=(points,radius=.025,material=hoseMat)=>{
+         const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(p[0],p[1],p[2])));
+         addMesh(new THREE.TubeGeometry(curve,18,radius,8,false),material,0,0,0,engineBay);
+       };
+       hose([[.47,.77,1.78],[.40,.66,1.95],[.28,.65,2.02]]);
+       hose([[.52,.70,1.75],[.50,.58,1.91],[.42,.59,2.07]],.022,engineMetal);
+       hose([[-.42,.70,1.82],[-.32,.63,1.92],[-.18,.66,2.04]],.022,hoseMat);
+       addMesh(new THREE.BoxGeometry(.18,.10,.25),engineTop,.28,.61,1.22,engineBay);
+       addMesh(new THREE.CylinderGeometry(.045,.045,.04,12),redCap,.28,.68,1.22,engineBay);
+       group.add(engineBay);engineBay.visible=false;
+
+       // Hinged rear trunk with carpet, spare wheel, rim, jack and tool storage.
+       const trunkPivot=new THREE.Group();trunkPivot.position.set(0,.86,-1.28);group.add(trunkPivot);
+       addMesh(new THREE.BoxGeometry(1.60,.055,.91),paint,0,.015,-.43,trunkPivot);
+       addMesh(new THREE.BoxGeometry(1.42,.025,.78),cabinTrim,0,-.018,-.43,trunkPivot);
+       const trunkBay=new THREE.Group();
+       addMesh(new THREE.BoxGeometry(1.48,.075,.88),black,0,.49,-1.67,trunkBay);
+       addMesh(new THREE.BoxGeometry(.12,.22,.82),cabinTrim,-.70,.61,-1.67,trunkBay);
+       addMesh(new THREE.BoxGeometry(.12,.22,.82),cabinTrim,.70,.61,-1.67,trunkBay);
+       const spare=new THREE.Mesh(new THREE.TorusGeometry(.265,.075,12,28),rubber);spare.rotation.x=Math.PI/2;spare.position.set(-.38,.68,-1.69);trunkBay.add(spare);
+       const spareHub=addMesh(new THREE.CylinderGeometry(.12,.12,.05,20),chrome,-.38,.68,-1.69,trunkBay);
+       addMesh(new THREE.BoxGeometry(.48,.16,.48),engineTop,.39,.62,-1.69,trunkBay);
+       addMesh(new THREE.BoxGeometry(.22,.055,.06),chrome,.39,.73,-1.69,trunkBay);
+       addMesh(new THREE.BoxGeometry(.22,.08,.34),black,.39,.55,-1.24,trunkBay);
+       addMesh(new THREE.BoxGeometry(.18,.035,.29),chrome,.39,.61,-1.24,trunkBay);
+       group.add(trunkBay);trunkBay.visible=false;
 
       // Four animated doors and four independent side windows that drop together.
       function addDoor(seat,side,hingeZ,depth){
@@ -2829,17 +2918,19 @@ showToast('Tap ENTER DINDU CITY to begin.');
       addDoor('rear-left',-1,-.68,.86);addDoor('rear-right',1,-.68,.86);
 
       // Four seats, steering wheel, instrument binnacle and centre console.
-      for(const [x,z] of [[-.38,.28],[.38,.28],[-.38,-.70],[.38,-.70]]){
+      // LEFT-HAND DRIVE: driver seat, pedals, steering wheel and instrument cluster are on local -X.
+      for(const [x,z] of [[-.42,.28],[.42,.28],[-.42,-.70],[.42,-.70]]){
         addMesh(new THREE.BoxGeometry(.58,.15,.60),leather,x,.58,z);
         addMesh(new THREE.BoxGeometry(.58,.72,.17),leather,x,.98,z-.20);
         addMesh(new THREE.BoxGeometry(.30,.20,.14),leather,x,1.40,z-.18);
       }
       addMesh(new THREE.BoxGeometry(1.62,.19,.33),cabinTrim,0,.92,.88);
-      addMesh(new THREE.BoxGeometry(.30,.13,.06),new THREE.MeshStandardMaterial({color:0x1a5367,emissive:0x123f50,emissiveIntensity:.65}),-.42,1.04,.69);
+      addMesh(new THREE.BoxGeometry(.30,.13,.06),new THREE.MeshStandardMaterial({color:0x1a5367,emissive:0x123f50,emissiveIntensity:.65}),-.46,1.04,.69);
       addMesh(new THREE.BoxGeometry(.24,.23,.75),cabinTrim,0,.67,.12);
-      const steering=new THREE.Mesh(new THREE.TorusGeometry(.17,.024,8,28),chrome);steering.position.set(-.38,1.10,.70);group.add(steering);
-      addMesh(new THREE.CylinderGeometry(.04,.05,.34,12),cabinTrim,-.38,.92,.72).rotation.x=Math.PI/2;
-      addMesh(new THREE.BoxGeometry(.26,.09,.035),new THREE.MeshStandardMaterial({color:0x0b2634,emissive:0x12506b,emissiveIntensity:.65}),.17,1.03,.69);
+      const steering=new THREE.Mesh(new THREE.TorusGeometry(.17,.024,8,28),chrome);steering.position.set(-.42,1.10,.70);group.add(steering);
+      addMesh(new THREE.CylinderGeometry(.04,.05,.34,12),cabinTrim,-.42,.92,.72).rotation.x=Math.PI/2;
+      addMesh(new THREE.BoxGeometry(.26,.09,.035),new THREE.MeshStandardMaterial({color:0x0b2634,emissive:0x12506b,emissiveIntensity:.65}),.25,1.03,.69);
+      for(const pedalX of [-.58,-.39])addMesh(new THREE.BoxGeometry(.075,.045,.12),chrome,pedalX,.31,.83);
       for(const side of [-1,1]){
         addMesh(new THREE.BoxGeometry(.055,.18,.32),cabinTrim,side*.86,.56,.1);
         addMesh(new THREE.BoxGeometry(.055,.18,.32),cabinTrim,side*.86,.56,-.58);
@@ -2862,7 +2953,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
           bar.rotation.x=spoke*Math.PI/5;
         }
         group.add(wheel);wheelVisuals.push({node:wheel,baseX:0});
-        const arch=new THREE.Mesh(new THREE.TorusGeometry(.43,.035,8,36),black);arch.rotation.y=Math.PI/2;arch.position.set(side*.91,.42,z);group.add(arch);
+         const arch=new THREE.Mesh(new THREE.TorusGeometry(.43,.045,10,36,Math.PI),darkPaint);arch.rotation.y=Math.PI/2;arch.position.set(side*.91,.42,z);group.add(arch);
       }
       for(const side of [-1,1]){
         addMesh(new THREE.BoxGeometry(.08,.16,2.35),darkPaint,side*.91,.39,0);
@@ -2887,7 +2978,8 @@ const playerActor=makeHuman(false);
     const activeCar=makeCar(null);
     function attachDriver(carActor,seat='driver'){
       const driver=SkeletonUtils.clone(playerTemplate);driver.scale.multiplyScalar(.54);
-      driver.position.set(seat==='passenger'?.38:-.38,.27,.10);driver.rotation.y=seat==='passenger'?Math.PI:0;
+       // Local -X is the driver's left side; +X is the front passenger seat.
+       driver.position.set(seat==='passenger'?.42:-.42,.30,.10);driver.rotation.y=seat==='passenger'?Math.PI:0;
       driver.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
       carActor.add(driver);return driver;
     }
@@ -2992,7 +3084,11 @@ const playerActor=makeHuman(false);
         a.jumping?(playerActor.actions.jump||playerActor.actions.idle):
         a.moving?(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):
         playerActor.actions.idle;
-      switchAction(playerActor.actions,playerAction,false,playerActor.restPose);playerActor.actions.mixer.update(dt);
+       switchAction(playerActor.actions,playerAction,false,playerActor.restPose);
+       const stride=Math.max(0,Math.min(1,Number(a.moveAmount)||0));
+       if(playerActor.actions.walk)playerActor.actions.walk.timeScale=.38+.82*stride;
+       if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
+       playerActor.actions.mixer.update(dt);
       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping);
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
@@ -3022,7 +3118,7 @@ const playerActor=makeHuman(false);
         updateDoor(actor,action&&action.type==='traffic'&&action.index===i?action:null,car,dt);updateVehicleVisuals(actor,car,dt,t);updateCarWheels(actor,car);
       });
       activeCar.visible=!!p.inCar;activeCar.position.set(p.x,.025,p.z);
-      activeCar.rotation.y=(p.yaw||0);const occupiedCar=link.parkedCars[p.carIndex];updateDoor(activeCar,action&&action.type==='parked'&&action.index===p.carIndex?action:null,occupiedCar,dt);updateVehicleVisuals(activeCar,occupiedCar,dt,t);updateCarWheels(activeCar,occupiedCar);playerDriver.position.x=p.seat==='passenger'?.38:-.38;playerDriver.rotation.y=p.seat==='passenger'?Math.PI:0;playerDriver.visible=!!p.inCar;
+      activeCar.rotation.y=(p.yaw||0);const occupiedCar=link.parkedCars[p.carIndex];updateDoor(activeCar,action&&action.type==='parked'&&action.index===p.carIndex?action:null,occupiedCar,dt);updateVehicleVisuals(activeCar,occupiedCar,dt,t);updateCarWheels(activeCar,occupiedCar);playerDriver.position.x=p.seat==='passenger'?.42:-.42;playerDriver.rotation.y=p.seat==='passenger'?Math.PI:0;playerDriver.visible=!!p.inCar;
     }
     function frame(){
       requestAnimationFrame(frame);
