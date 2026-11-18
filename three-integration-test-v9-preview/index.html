@@ -2751,7 +2751,11 @@ showToast('Tap ENTER DINDU CITY to begin.');
         }
       });
     }
-    styleDinduStreetwear(playerTemplate);
+    // V9.6: keep the original GLB's complete skinned body and authored materials.
+    // The old styling pass recoloured meshes using bounding-box guesses and added
+    // extra capsule/box geometry over arms, legs and feet, distorting the silhouette.
+    // Do not run that overlay pass on the source character.
+    // styleDinduStreetwear(playerTemplate);
     playerTemplate.updateMatrixWorld(true);
 
     const makeHuman=(cloneModel=true)=>{
