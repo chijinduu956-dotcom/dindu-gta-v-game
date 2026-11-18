@@ -2738,7 +2738,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
        shadow.renderOrder=-1;
        scene.add(shadow);
        // V9: use the exact joint names reported by the GLB rig inspector.
-       // The shoulder joints move the complete arm; LeftArm/RightArm are elbows.
+       // Shoulder joints drive the upper arm; LeftArm/RightArm are upper-arm joints.
        const rig={};
        model.traverse(o=>{if(o.isBone)rig[o.name]=o;});
        const requiredRig=['Hips','Spine02','LeftShoulder','LeftArm','LeftForeArm','LeftHand',
@@ -2746,9 +2746,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
          'RightUpLeg','RightLeg','RightFoot','RightToeBase','Head','neck'];
        const missingRig=requiredRig.filter(name=>!rig[name]);
        if(missingRig.length)console.warn('DINDU V9 rig joints not found:',missingRig.join(', '));
-       // Narrow the actual hip pivots. V8 altered tiny elbow/thigh offsets instead of the shoulder pivots.
-       if(rig.LeftUpLeg)rig.LeftUpLeg.position.x*=.64;
-       if(rig.RightUpLeg)rig.RightUpLeg.position.x*=.64;
+       // Preserve the source rig's original body and hip proportions.
        const rootMotionBones=rig.Hips?[{bone:rig.Hips,position:rig.Hips.position.clone()}]:[];
        const modelPosition=model.position.clone();
        const restPose=[];
@@ -2758,7 +2756,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
        const mixer=new THREE.AnimationMixer(model);
        const clips=playerGLTF.animations||[];
        const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
-       const actions={idle:find(/idle|stand/i),walk:find(/walk/i),run:find(/run/i),jump:find(/jump/i),punch:find(/punch|attack|fight/i),enter:find(/enter|vehicle.?in|car.?in|get.?in/i),exit:find(/exit|vehicle.?out|car.?out|get.?out/i),mixer,active:null};
+       const actions={walk:find(/walk/i),run:find(/run/i),jump:find(/jump/i),punch:find(/punch|attack|fight/i),enter:find(/enter|vehicle.?in|car.?in|get.?in/i),exit:find(/exit|vehicle.?out|car.?out|get.?out/i),mixer,active:null};
        const breathBones=[],armBones=[],legBones=[],headBones=[];
        model.traverse(o=>{
          if(!o.isBone)return;
@@ -2774,10 +2772,8 @@ showToast('Tap ENTER DINDU CITY to begin.');
          }
          if(/neck|head/.test(name))headBones.push({bone:o,name,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,neck:/neck/.test(name)});
        });
-       const initial=actions.idle;
-       if(initial){initial.play();actions.active=initial;}
        return {group,shadow,model,modelPosition,rootMotionBones,rig,actions,breathBones,armBones,legBones,headBones,restPose,
-         idleWait:5,idleGesture:null,idleProgress:0,idleIndex:0,idleSide:1};
+       };
     };
     const switchAction=(actions,next,freeze=false,restPose=null)=>{
       if(!next){
@@ -3113,23 +3109,7 @@ const playerActor=makeHuman(true);
       camera.lookAt(p.x,y,p.z);
       camera.updateMatrixWorld();
     }
-    const idleGestureOrder=['look'];
-    function updateIdleGesture(actor,dt,eligible){
-      if(!eligible){actor.idleWait=5;actor.idleGesture=null;actor.idleProgress=0;return null;}
-      if(actor.idleGesture){
-        actor.idleProgress=Math.min(1,actor.idleProgress+dt/2.15);
-        const pose={name:actor.idleGesture,weight:Math.sin(Math.PI*actor.idleProgress),side:actor.idleSide};
-        if(actor.idleProgress>=1){actor.idleGesture=null;actor.idleWait=2.35+(actor.idleIndex%3)*.45;}
-        return pose;
-      }
-      actor.idleWait-=dt;
-      if(actor.idleWait<=0){
-        actor.idleGesture=idleGestureOrder[actor.idleIndex%idleGestureOrder.length];
-        actor.idleSide=actor.idleIndex%2===0?1:-1;
-        actor.idleIndex++;actor.idleProgress=0;
-      }
-      return null;
-    }
+
     // Aim a real bone segment in model-local space. This avoids assuming that every
     // rig stores its shoulder, elbow and knee rotations on the same Euler axis.
     function aimRigSegment(actor,startName,endName,targetLocal,weight=1){
@@ -3156,132 +3136,131 @@ const playerActor=makeHuman(true);
       const bone=actor.rig&&actor.rig[name];
       return bone&&actor.restPose?actor.restPose.find(p=>p.bone===bone):null;
     }
-    function applyNaturalStand(actor,t){
-      const s=1;
-      // Arms hang from the shoulder; elbows and wrists follow the same relaxed line.
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.38,-.925,.025],s);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.025,-.99,.10],s);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[0,-.985,.17],s);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.38,-.925,.025],s);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.025,-.99,.10],s);
-      aimRigSegment(actor,'RightForeArm','RightHand',[0,-.985,.17],s);
-      // Keep knees tracking close to the body's centre line and feet level.
-      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[-.025,-.999,0],s);
-      aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.99,-.12],s);
-      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],s);
-      aimRigSegment(actor,'RightUpLeg','RightLeg',[.025,-.999,0],s);
-      aimRigSegment(actor,'RightLeg','RightFoot',[0,-.99,-.12],s);
-      aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],s);
-      const spine=actor.rig&&actor.rig.Spine;
-      if(spine){
-        const rest=getRigRest(actor,'Spine');
-        if(rest){spine.quaternion.copy(rest.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),Math.sin(t*2.1)*.006));}
-      }
+    function applyNaturalStand(actor){
+      // Static relaxed stance. Arms hang slightly out from the torso so the hands
+      // remain visible beside the hips instead of clipping into the body.
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.62,-.78,.02],1);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.22,-.97,.03],1);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.12,-.99,.02],1);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.62,-.78,.02],1);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.22,-.97,.03],1);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.12,-.99,.02],1);
     }
     function applyCrouchPose(actor,weight=1,moving=false){
       const w=Math.max(0,Math.min(1,weight));
-      const setRestBend=(name,angle)=>{
-        const bone=actor.rig&&actor.rig[name],rest=getRigRest(actor,name);
-        if(!bone||!rest)return;
-        bone.quaternion.copy(rest.quaternion).multiply(
-          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle*w));
-      };
+      const legW=w*(moving?.32:1);
+      const torsoW=w*(moving?.58:1);
+      const armW=w*(moving?.62:1);
       const hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
       if(hips&&hipsRest){
+        const worldScale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
         hips.position.copy(hipsRest.position);
-        hips.position.y-=.075*w;
+        hips.position.y-=(.19*w)/worldScale;
       }
-      // Conservative local bends at the real thigh and knee joints.
-      // Arms stay in the model's verified relaxed/rest pose.
-      setRestBend('LeftUpLeg',.38);
-      setRestBend('RightUpLeg',.38);
-      setRestBend('LeftLeg',-.72);
-      setRestBend('RightLeg',-.72);
-      setRestBend('Spine02',.12);
+      // Bend from the real joints using bone-to-bone directions, not guessed Euler axes.
+      aimRigSegment(actor,'Spine02','Spine01',[0,.92,.39],torsoW);
+      aimRigSegment(actor,'Spine01','Spine',[0,.94,.34],torsoW);
+      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.05,-.70,.71],legW);
+      aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.94,-.34],legW);
+      aimRigSegment(actor,'RightUpLeg','RightLeg',[-.05,-.70,.71],legW);
+      aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.94,-.34],legW);
+      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],legW);
+      aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],legW);
+      // Arms stay apart and forward like the low crouch in the supplied reference.
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.44,-.66,.61],armW);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.08,-.32,.94],armW);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.04,-.14,.99],armW);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.44,-.66,.61],armW);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.08,-.32,.94],armW);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.04,-.14,.99],armW);
     }
     function applyJumpPose(actor,sprintJump,jumpHeight){
-      const w=Math.max(.25,Math.min(1,.30+(Math.max(0,jumpHeight)/.78)));
+      const w=Math.max(.35,Math.min(1,.38+(Math.max(0,jumpHeight)/.72)));
       if(sprintJump){
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[.38,.42,-.82],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[.03,-.30,-.95],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[-.38,.42,-.82],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[-.03,-.30,-.95],w);
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[-.035,-.48,.88],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[.035,-.48,.88],w);
+        // Forward sprint leap: torso pitched forward, leading arm/leg forward,
+        // trailing arm/leg counterbalancing behind.
+        aimRigSegment(actor,'Spine02','Spine01',[0,.95,.28],w*.72);
+        aimRigSegment(actor,'Spine01','Spine',[0,.96,.22],w*.72);
+        aimRigSegment(actor,'LeftShoulder','LeftArm',[.55,.34,.76],w);
+        aimRigSegment(actor,'LeftArm','LeftForeArm',[.10,.32,.94],w);
+        aimRigSegment(actor,'LeftForeArm','LeftHand',[.02,.18,.98],w);
+        aimRigSegment(actor,'RightShoulder','RightArm',[-.30,.76,-.57],w);
+        aimRigSegment(actor,'RightArm','RightForeArm',[-.08,.70,-.70],w);
+        aimRigSegment(actor,'RightForeArm','RightHand',[-.02,.32,-.94],w);
+        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.05,-.50,.86],w);
+        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.94,-.32],w);
+        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.92,-.38],w);
+        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.98,.16],w);
       }else{
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[.38,.72,.58],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[.02,-.45,.89],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[-.38,.72,.58],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[-.02,-.45,.89],w);
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[-.035,-.62,.78],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[.035,-.62,.78],w);
+        // Regular jump: both arms open and raised, knees tucked under the body.
+        aimRigSegment(actor,'Spine02','Spine01',[0,.98,-.16],w*.48);
+        aimRigSegment(actor,'Spine01','Spine',[0,.99,-.10],w*.48);
+        aimRigSegment(actor,'LeftShoulder','LeftArm',[.55,.72,.42],w);
+        aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,.58,.80],w);
+        aimRigSegment(actor,'LeftForeArm','LeftHand',[.05,.34,.94],w);
+        aimRigSegment(actor,'RightShoulder','RightArm',[-.55,.72,.42],w);
+        aimRigSegment(actor,'RightArm','RightForeArm',[-.12,.58,.80],w);
+        aimRigSegment(actor,'RightForeArm','RightHand',[-.05,.34,.94],w);
+        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.62,.78],w);
+        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.94,-.32],w);
+        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.62,.78],w);
+        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.94,-.32],w);
       }
-      aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.96,-.27],w);
-      aimRigSegment(actor,'RightLeg','RightFoot',[0,-.96,-.27],w);
+      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],w);
+      aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],w);
     }
     function applyLandingPose(actor,weight,sprint){
-      const w=Math.max(0,Math.min(1,weight));
-      aimRigSegment(actor,'Hips','Spine02',[0,.985,.10],w*.5);
-      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[-.02,-.84,.54],w);
-      aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.93,-.36],w);
-      aimRigSegment(actor,'RightUpLeg','RightLeg',[.02,-.84,.54],w);
-      aimRigSegment(actor,'RightLeg','RightFoot',[0,-.93,-.36],w);
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.35,-.80,.48],w);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.35,-.80,.48],w);
+      // Absorb the landing with the same grounded knee/hip bend as the crouch.
+      applyCrouchPose(actor,Math.max(0,Math.min(1,weight))*.86,false);
     }
     function applyStylizedPunch(actor,punchTime){
-      // A brief, clearly game-like arm gesture; walking/running legs remain animated.
+      // Short, non-graphic game punch: one arm extends forward while the other guards.
       const phase=Math.max(0,Math.min(1,1-(Number(punchTime)||0)/.58));
       const w=Math.sin(Math.PI*phase);
       if(w<=.001)return;
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.34,-.18,.925],w);
-      aimRigSegment(actor,'RightArm','RightForeArm',[0,-.08,1],w);
-      aimRigSegment(actor,'RightForeArm','RightHand',[0,-.04,1],w);
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.42,-.75,.50],w*.72);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[-.10,-.43,.89],w*.72);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.16,-.08,.985],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.035,-.06,.997],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[0,-.02,1],w);
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.48,-.52,.70],w*.78);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.20,-.24,.95],w*.78);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.08,-.12,.99],w*.78);
+      const spine=actor.rig&&actor.rig.Spine,rest=getRigRest(actor,'Spine');
+      if(spine&&rest)spine.quaternion.copy(rest.quaternion).multiply(
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-.10*w));
     }
-    function applyIdleGesture(actor,idle){
-      if(!idle||idle.weight<=0)return;
-      // V9.2: disable unverified arm gestures; they caused the arms-out/T-pose.
-      // Only the verified head joint is used for a subtle look-around.
-      const w=Math.max(0,Math.min(1,idle.weight));
-      const head=actor.rig&&actor.rig.Head;
-      if(head&&idle.name==='look'){
-        const rest=getRigRest(actor,'Head');
-        if(rest)head.quaternion.copy(rest.quaternion).multiply(
-          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),idle.side*.20*w));
-      }
-    }
+
     function applyVehicleTransitionPose(actor,entering,progress){
       const p=Math.max(0,Math.min(1,progress));
-      const weight=entering?Math.max(0,Math.min(1,(p-.38)/.52)):Math.max(0,1-p);
-      if(weight<=0)return;
-      applyCrouchPose(actor,weight,false);
-      // Hands move forward during the door/seat transition; no absent GLB clip is called.
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.40,-.52,.75],weight);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.02,-.20,.98],weight);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.40,-.52,.75],weight);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.02,-.20,.98],weight);
+      const weight=entering?Math.max(0,Math.min(1,(p-.30)/.60)):Math.max(0,1-p);
+      if(weight<=.001)return;
+      // The existing vehicle logic walks to the door and opens it; this pose bends
+      // the player down into the seat, then reverses while getting out.
+      applyCrouchPose(actor,weight*.92,false);
+      aimRigSegment(actor,'LeftShoulder','LeftArm',[.50,-.42,.75],weight);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,-.12,.99],weight);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.04,-.04,1],weight);
+      aimRigSegment(actor,'RightShoulder','RightArm',[-.28,-.58,.76],weight);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.08,-.24,.96],weight);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.03,-.08,.99],weight);
     }
-    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,idle=null,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1){
+    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1){
       const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
-      // Physics controls actor height. Restore imported root motion after each animation tick.
+      // Keep imported animation root motion from changing the fitted character height.
       for(const entry of actor.rootMotionBones||[])entry.bone.position.copy(entry.position);
       if(actor.model&&actor.modelPosition)actor.model.position.copy(actor.modelPosition);
       if(locomotionClip){
-        if(sneaking)applyCrouchPose(actor,.55,true);
+        if(sneaking)applyCrouchPose(actor,.62,true);
         if(punching)applyStylizedPunch(actor,punchTime);
         actor.group.scale.y=1;
         return;
       }
-      applyNaturalStand(actor,t);
+      applyNaturalStand(actor);
       if(vehicleEntering){applyVehicleTransitionPose(actor,true,entryProgress);actor.group.scale.y=1;return;}
       if(vehicleExiting){applyVehicleTransitionPose(actor,false,exitProgress);actor.group.scale.y=1;return;}
       if(sneaking){applyCrouchPose(actor,1,false);actor.group.scale.y=1;return;}
       if(jumping){applyJumpPose(actor,!!sprintJump,jumpHeight);actor.group.scale.y=1;return;}
       if(landingWeight>0)applyLandingPose(actor,landingWeight,!!landingSprint);
       if(punching)applyStylizedPunch(actor,punchTime);
-      else if(idle)applyIdleGesture(actor,idle);
       actor.group.scale.y=1;
     }
     function updateDoor(actor,action,car,dt){
@@ -3317,7 +3296,6 @@ const playerActor=makeHuman(true);
       const p=link.player,a=link.animationState,t=performance.now()*.001;
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
-       const idlePose=updateIdleGesture(playerActor,dt,!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.vehicleEntering&&!a.vehicleExiting&&!a.playerDown&&!a.running&&!a.sneaking);
        playerActor.group.visible=!p.inCar;playerActor.group.position.set(p.x,p.y,p.z);
        if(visualPlayerYaw===null)visualPlayerYaw=p.yaw||0;
        const turnDelta=Math.atan2(Math.sin((p.yaw||0)-visualPlayerYaw),Math.cos((p.yaw||0)-visualPlayerYaw));
@@ -3337,7 +3315,7 @@ const playerActor=makeHuman(true);
        if(playerActor.actions.walk)playerActor.actions.walk.timeScale=a.sneaking?(.22+.32*stride):(.38+.82*stride);
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
-       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,idlePose,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1);
+       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1);
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
         const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
