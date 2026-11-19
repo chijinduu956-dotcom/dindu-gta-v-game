@@ -3125,6 +3125,8 @@ const playerActor=makeHuman(true);
 
     const clock=new THREE.Clock();
     let visualPlayerYaw=null;
+    let playerStillSeconds=0;
+    let playerFoldWeight=0;
     const dist2=(x1,z1,x2,z2)=>{const dx=x1-x2,dz=z1-z2;return dx*dx+dz*dz;};
     function syncCamera(){
       const shared=window.__DINDU3D_CAMERA_MATRICES__;
@@ -3186,6 +3188,18 @@ const playerActor=makeHuman(true);
       aimRigSegment(actor,'RightArm','RightForeArm',[-.32,-.94,.08],1);
       aimRigSegment(actor,'RightForeArm','RightHand',[-.18,-.98,.02],1);
     }
+    function applyFoldedHandsPose(actor,weight=1){
+      const w=Math.max(0,Math.min(1,weight));
+      if(w<=.001)return;
+      // A relaxed crossed-arm rest pose: upper arms angle inward and forward,
+      // forearms cross in front of the chest, with hands resting near opposite
+      // upper arms. Shoulder/clavicle bones keep their measured rest direction.
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[-.42,-.34,.84],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[.42,-.34,.84],w);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[-.78,.30,.55],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[.78,.30,.55],w);
+    }
+
     function applyCrouchPose(actor,weight=1,moving=false,t=0){
       const w=Math.max(0,Math.min(1,weight));
       const stride=moving?Math.sin((Number(t)||0)*5.0)*.075:0;
@@ -3295,7 +3309,7 @@ const playerActor=makeHuman(true);
       aimRigSegment(actor,'RightArm','RightForeArm',[-.10,-.22,.97],weight);
       aimRigSegment(actor,'RightForeArm','RightHand',[-.03,-.06,.99],weight);
     }
-    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1,jumpVelocity=0){
+    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1,jumpVelocity=0,idleFoldWeight=0){
       const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
       // Remove root translation from the imported clips without scaling the body.
       for(const entry of actor.rootMotionBones||[])entry.bone.position.copy(entry.position);
@@ -3313,6 +3327,8 @@ const playerActor=makeHuman(true);
       if(jumping){applyJumpPose(actor,!!sprintJump,jumpHeight,jumpVelocity);actor.group.scale.set(1,1,1);return;}
       if(landingWeight>0)applyLandingPose(actor,landingWeight,!!landingSprint,t);
       if(punching)applyStylizedPunch(actor,punchTime);
+      if(idleFoldWeight>0&&!moving&&!punching&&landingWeight<=0)
+        applyFoldedHandsPose(actor,idleFoldWeight);
       actor.group.scale.set(1,1,1);
     }
     function updateDoor(actor,action,car,dt){
@@ -3346,6 +3362,14 @@ const playerActor=makeHuman(true);
     }
     function syncActors(dt){
       const p=link.player,a=link.animationState,t=performance.now()*.001;
+      const idleEligible=!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.sneaking
+        &&!a.vehicleEntering&&!a.vehicleExiting&&!a.playerDown;
+      if(idleEligible)playerStillSeconds+=dt;
+      else playerStillSeconds=0;
+      const foldTarget=idleEligible&&playerStillSeconds>=3?1:0;
+      const foldRate=foldTarget>playerFoldWeight?6:12;
+      playerFoldWeight+=(foldTarget-playerFoldWeight)*(1-Math.exp(-foldRate*dt));
+      if(Math.abs(playerFoldWeight-foldTarget)<.001)playerFoldWeight=foldTarget;
       while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
       const action=link.vehicleAction;
        playerActor.group.visible=!p.inCar&&(!a.vehicleExiting||a.vehicleExitProgress>.48);playerActor.group.position.set(p.x,p.y,p.z);
@@ -3366,7 +3390,7 @@ const playerActor=makeHuman(true);
        if(playerActor.actions.walk)playerActor.actions.walk.timeScale=a.sneaking?(.22+.32*stride):(.38+.82*stride);
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
-       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0);
+       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0,playerFoldWeight);
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
         const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
