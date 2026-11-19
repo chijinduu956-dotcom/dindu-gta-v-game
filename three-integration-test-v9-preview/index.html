@@ -3257,39 +3257,39 @@ const playerActor=makeHuman(true);
     }
     function applyJumpPose(actor,sprintJump,jumpHeight,jumpVelocity=0){
       const h=Math.max(0,Math.min(1,(Number(jumpHeight)||0)/.72));
-      const rising=(Number(jumpVelocity)||0)>0;
-      const w=Math.max(.58,Math.min(1,.62+.38*h));
-      if(sprintJump){
-        // Forward-running leap: chest pitched forward, one arm reaches ahead,
-        // the other trails; the legs split into a clear airborne stride.
-        aimRigSegment(actor,'Spine02','Spine01',[0,.82,.57],w*.90);
-        aimRigSegment(actor,'Spine01','Spine',[0,.86,.50],w*.90);
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[.48,.48,.73],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,.38,.92],w);
-        aimRigSegment(actor,'LeftForeArm','LeftHand',[.03,.20,.98],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[-.52,.18,-.83],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[-.12,.28,-.95],w);
-        aimRigSegment(actor,'RightForeArm','RightHand',[-.03,.16,-.98],w);
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.50,.86],w);
-        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.92,-.38],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.88,-.48],w);
-        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.98,.18],w);
+      const velocity=Number(jumpVelocity)||0;
+      const rising=velocity>.15;
+      const falling=velocity<-.15;
+      const w=Math.max(.82,Math.min(1,.84+.16*h));
+      const lean=sprintJump?.76:.86;
+      const chest=sprintJump?.65:.51;
+      // Reference-style airborne pose: lean forward, keep elbows bent and
+      // bring the knees underneath the body instead of spreading the limbs wide.
+      aimRigSegment(actor,'Spine02','Spine01',[0,lean,chest],w);
+      aimRigSegment(actor,'Spine01','Spine',[0,sprintJump?.81:.90,sprintJump?.58:.43],w);
+
+      const armOut=falling?(sprintJump?.64:.54):(sprintJump?.54:.46);
+      const armDown=falling?-.23:-.12;
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[armOut,armDown,.82],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-armOut,armDown,.82],w);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[-.24,falling?-.58:-.48,.78],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[.24,falling?-.58:-.48,.78],w);
+
+      if(falling){
+        // Prepare for touchdown: one knee stays tucked while the other leg
+        // reaches down, matching the alternating knee shape in the reference.
+        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.48,.87],w);
+        aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.83,-.55],w);
+        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.84,.53],w);
+        aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.98,.16],w);
       }else{
-        // Vertical jump: both arms rise with bent elbows and both knees tuck back.
-        aimRigSegment(actor,'Spine02','Spine01',[0,.98,-.12],w*.62);
-        aimRigSegment(actor,'Spine01','Spine',[0,.99,-.08],w*.62);
-        aimRigSegment(actor,'LeftShoulder','LeftArm',[.54,.68,.49],w);
-        aimRigSegment(actor,'LeftArm','LeftForeArm',[.22,.80,.55],w);
-        aimRigSegment(actor,'LeftForeArm','LeftHand',[.06,.38,.92],w);
-        aimRigSegment(actor,'RightShoulder','RightArm',[-.54,.68,.49],w);
-        aimRigSegment(actor,'RightArm','RightForeArm',[-.22,.80,.55],w);
-        aimRigSegment(actor,'RightForeArm','RightHand',[-.06,.38,.92],w);
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.48,-.88],w);
-        aimRigSegment(actor,'LeftLeg','LeftFoot',[0,-.82,.57],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.48,-.88],w);
-        aimRigSegment(actor,'RightLeg','RightFoot',[0,-.82,.57],w);
+        // Rising and near the apex: tuck both legs, with the lead knee higher.
+        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,sprintJump?-.36:-.44,.93],w);
+        aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.81,-.57],w);
+        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,sprintJump?-.68:-.72,.72],w);
+        aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.92,-.36],w);
       }
-      const footWeight=rising?.85:1;
+      const footWeight=rising?.88:1;
       aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],w*footWeight);
       aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],w*footWeight);
     }
