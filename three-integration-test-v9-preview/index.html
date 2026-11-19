@@ -3177,13 +3177,12 @@ const playerActor=makeHuman(true);
       return bone&&actor.restPose?actor.restPose.find(p=>p.bone===bone):null;
     }
     function applyNaturalStand(actor){
-      // Neutral human stance: shoulders relaxed, upper arms slightly away from
-      // the ribs, elbows softly bent, and hands resting outside the thighs.
-      // The mirrored local-X targets keep both hands clear of the torso.
-      aimRigSegment(actor,'LeftShoulder','LeftArm',[.68,-.73,.02],1);
+      // V9.7: keep the measured GLB shoulder/clavicle directions at their
+      // original outward angles. The previous pose rotated these short bones
+      // down and inward, narrowing the shoulder line.
+      // Only guide the upper arms and forearms down beside the torso.
       aimRigSegment(actor,'LeftArm','LeftForeArm',[.32,-.94,.08],1);
       aimRigSegment(actor,'LeftForeArm','LeftHand',[.18,-.98,.02],1);
-      aimRigSegment(actor,'RightShoulder','RightArm',[-.68,-.73,.02],1);
       aimRigSegment(actor,'RightArm','RightForeArm',[-.32,-.94,.08],1);
       aimRigSegment(actor,'RightForeArm','RightHand',[-.18,-.98,.02],1);
     }
