@@ -3191,13 +3191,14 @@ const playerActor=makeHuman(true);
     function applyFoldedHandsPose(actor,weight=1){
       const w=Math.max(0,Math.min(1,weight));
       if(w<=.001)return;
-      // A relaxed crossed-arm rest pose: upper arms angle inward and forward,
-      // forearms cross in front of the chest, with hands resting near opposite
-      // upper arms. Shoulder/clavicle bones keep their measured rest direction.
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[-.42,-.34,.84],w);
-      aimRigSegment(actor,'RightArm','RightForeArm',[.42,-.34,.84],w);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[-.78,.30,.55],w);
-      aimRigSegment(actor,'RightForeArm','RightHand',[.78,.30,.55],w);
+      // V9.9: keep the elbows lower and nearer the ribs, then fold the
+      // forearms more horizontally across the chest. This avoids the wide,
+      // raised-elbow look in V9.8 and brings each hand toward the opposite arm.
+      // Shoulder/clavicle bones remain in their measured natural rest direction.
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.12,-.88,.46],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.12,-.88,.46],w);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[-.94,.08,.31],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[.94,.08,.31],w);
     }
 
     function applyCrouchPose(actor,weight=1,moving=false,t=0){
