@@ -3257,12 +3257,17 @@ const playerActor=makeHuman(true);
     }
 
 
+
     function applyJumpPose(actor,sprintJump,jumpHeight,jumpVelocity=0){
       const height=Math.max(0,Number(jumpHeight)||0);
       const velocity=Number(jumpVelocity)||0;
       const gravity=24;
+      // Recover a normalized 0..1 flight phase from the ballistic height
+      // and vertical speed. Unlike height-only blending, this keeps limbs
+      // moving through takeoff, apex and descent instead of holding one pose.
       const apex=Math.max(.18,height+(velocity*velocity)/(2*gravity));
-      const arc=Math.max(0,Math.min(1,height/apex));
+      const launchSpeed=Math.sqrt(2*gravity*apex);
+      const phase=Math.max(0,Math.min(1,(launchSpeed-velocity)/(2*launchSpeed)));
       const clamp=(v)=>Math.max(0,Math.min(1,v));
       const smooth=(a,b,v)=>{
         const x=clamp((v-a)/(b-a));
@@ -3270,49 +3275,57 @@ const playerActor=makeHuman(true);
       };
       const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 
-      // Build into the high-knee running jump, then soften it slightly on
-      // descent. The opposite leg stays long instead of folding symmetrically.
-      const lift=smooth(.025,.48,arc);
-      const descent=velocity<-.35?smooth(.28,.88,1-arc):0;
-      const weight=.94+.06*lift;
-      const jumpDrive=sprintJump?1:.92;
+      const kneeDrive=smooth(.04,.34,phase);
+      const openOut=smooth(.30,.53,phase);
+      const descend=smooth(.61,.91,phase);
+      const weight=.94+.06*smooth(.03,.28,phase);
+      const sprintLean=sprintJump?1:.94;
 
-      const spineA=mix([0,.96,.27],[0,.93,.36],lift);
-      const spineB=mix([0,.97,.22],[0,.94,.32],lift);
-      spineA[2]+=(jumpDrive-1)*.04;
-      spineB[2]+=(jumpDrive-1)*.04;
-      aimRigSegment(actor,'Spine02','Spine01',mix(spineA,[0,.88,.46],descent),weight);
-      aimRigSegment(actor,'Spine01','Spine',mix(spineB,[0,.90,.42],descent),weight);
+      // Torso starts compact, opens at the top of the bound, then inclines
+      // forward as the legs prepare to meet the ground.
+      const spineA=mix([0,.88,.43],[0,.97,.30],kneeDrive);
+      const spineB=mix([0,.91,.38],[0,.98,.26],kneeDrive);
+      spineA[1]-=(sprintLean-1)*.04;
+      spineB[1]-=(sprintLean-1)*.04;
+      aimRigSegment(actor,'Spine02','Spine01',mix(spineA,[0,.77,.67],descend),weight);
+      aimRigSegment(actor,'Spine01','Spine',mix(spineB,[0,.80,.62],descend),weight);
 
-      // Reference arm shape: left upper arm opens sideways and its forearm
-      // folds up beside the head; right arm stays lower and nearer the ribs.
-      const leftUpper=mix([.46,-.58,.66],[.94,-.08,.30],lift);
-      const leftFore=mix([.12,-.36,.93],[-.18,.92,.34],lift);
-      const rightUpper=mix([-.32,-.94,.08],[-.28,-.80,.52],lift);
-      const rightFore=mix([-.18,-.98,.02],[-.12,-.58,.80],lift);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',mix(leftUpper,[.82,-.24,.52],descent),weight);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',mix(leftFore,[-.14,.58,.79],descent),weight);
-      aimRigSegment(actor,'RightArm','RightForeArm',mix(rightUpper,[-.30,-.86,.42],descent),weight);
-      aimRigSegment(actor,'RightForeArm','RightHand',mix(rightFore,[-.08,-.70,.71],descent),weight);
+      // Lead arm rises beside the head during takeoff, then opens outward
+      // at the apex. It sweeps down/back on descent instead of staying upright.
+      const leftUpper=mix([.44,-.62,.64],[.94,-.08,.30],kneeDrive);
+      const leftFore=mix([.12,-.34,.93],[-.18,.92,.34],kneeDrive);
+      const leftOpen=mix(leftUpper,[.78,-.22,.59],openOut);
+      const leftForeOpen=mix(leftFore,[.08,-.32,.94],openOut);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',mix(leftOpen,[.34,-.78,.52],descend),weight);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',mix(leftForeOpen,[.06,-.82,.56],descend),weight);
 
-      // One clear lead knee: thigh drives forward, shin folds back.
-      // The trailing leg remains almost straight beneath the hips.
-      const leadThigh=mix([.04,-.48,.87],[.04,-.27,.96],lift);
-      const leadShin=mix([.02,-.86,-.50],[.02,-.92,-.39],lift);
-      const trailThigh=mix([-.04,-.96,.24],[-.04,-.94,.30],lift);
-      const trailShin=mix([-.02,-.99,.06],[-.02,-.99,.08],lift);
-      aimRigSegment(actor,'LeftUpLeg','LeftLeg',mix(leadThigh,[.04,-.38,.92],descent),weight);
-      aimRigSegment(actor,'LeftLeg','LeftFoot',mix(leadShin,[.02,-.95,-.30],descent),weight);
-      aimRigSegment(actor,'RightUpLeg','RightLeg',mix(trailThigh,[-.04,-.88,.46],descent),weight);
-      aimRigSegment(actor,'RightLeg','RightFoot',mix(trailShin,[-.02,-.98,.16],descent),weight);
+      // The opposite arm stays lower and nearer the ribs, then opens just
+      // enough to counterbalance the raised knee.
+      const rightUpper=mix([-.28,-.94,.08],[-.30,-.78,.55],kneeDrive);
+      const rightFore=mix([-.18,-.98,.02],[-.12,-.60,.79],kneeDrive);
+      const rightOpen=mix(rightUpper,[-.56,-.52,.65],openOut);
+      const rightForeOpen=mix(rightFore,[-.08,-.42,.90],openOut);
+      aimRigSegment(actor,'RightArm','RightForeArm',mix(rightOpen,[-.34,-.82,.45],descend),weight);
+      aimRigSegment(actor,'RightForeArm','RightHand',mix(rightForeOpen,[-.08,-.86,.48],descend),weight);
+
+      // One knee drives high in front. The other leg trails bent at first,
+      // then lengthens beneath the body during descent for the one-foot catch.
+      const leadThigh=mix([.04,-.64,.76],[.04,-.23,.97],kneeDrive);
+      const leadShin=mix([.02,-.96,.16],[.02,-.83,-.55],kneeDrive);
+      const trailThigh=mix([-.04,-.56,.82],[-.04,-.82,.56],kneeDrive);
+      const trailShin=mix([-.02,-.72,-.66],[-.02,-.98,.12],kneeDrive);
+      aimRigSegment(actor,'LeftUpLeg','LeftLeg',mix(leadThigh,[.04,-.56,.82],descend),weight);
+      aimRigSegment(actor,'LeftLeg','LeftFoot',mix(leadShin,[.02,-.97,.18],descend),weight);
+      aimRigSegment(actor,'RightUpLeg','RightLeg',mix(trailThigh,[-.04,-.98,.18],descend),weight);
+      aimRigSegment(actor,'RightLeg','RightFoot',mix(trailShin,[-.02,-.99,.08],descend),weight);
 
       const hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
       if(hips&&hipsRest){
         const scale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
-        const preload=1-smooth(.02,.34,arc);
+        const preload=1-smooth(.02,.25,phase);
         hips.position.copy(hipsRest.position);
-        hips.position.y-=(.025*preload+.018*lift)/scale;
-        hips.position.z+=(.018+.02*lift)/scale;
+        hips.position.y-=(.025*preload+.018*kneeDrive)/scale;
+        hips.position.z+=(.015+.025*kneeDrive+.025*descend)/scale;
       }
       aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,-.08,.99],weight);
       aimRigSegment(actor,'RightFoot','RightToeBase',[0,-.03,.999],weight);
@@ -3324,22 +3337,23 @@ const playerActor=makeHuman(true);
       if(hips&&hipsRest){
         const scale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
         hips.position.copy(hipsRest.position);
-        hips.position.y-=(.13*w)/scale;
-        hips.position.z+=(.035*w)/scale;
+        hips.position.y-=(.18*w)/scale;
+        hips.position.z+=(.045*w)/scale;
       }
-      // Brief forward compression, then blend back to the active run cycle.
-      aimRigSegment(actor,'Spine02','Spine01',[0,.86,.50],w);
-      aimRigSegment(actor,'Spine01','Spine',[0,.88,.46],w);
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[.72,-.38,.58],w);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[-.12,.24,.96],w);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-.34,-.82,.45],w);
-      aimRigSegment(actor,'RightForeArm','RightHand',[-.08,-.62,.78],w);
-      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.46,.88],w);
-      aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.94,-.34],w);
-      aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.84,.54],w);
-      aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.98,.17],w);
-      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,-.08,.99],w);
-      aimRigSegment(actor,'RightFoot','RightToeBase',[0,-.03,.999],w);
+      // The reference finishes with a low forward catch: head/chest pitch
+      // forward, arms drop beside the torso, knees compress, then recover.
+      aimRigSegment(actor,'Spine02','Spine01',[0,.78,.68],w);
+      aimRigSegment(actor,'Spine01','Spine',[0,.80,.64],w);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.40,-.78,.48],w);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.12,-.92,.28],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.38,-.80,.46],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.10,-.93,.26],w);
+      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.58,.81],w);
+      aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.96,-.27],w);
+      aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.69,.72],w);
+      aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.98,.15],w);
+      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,-.10,.99],w);
+      aimRigSegment(actor,'RightFoot','RightToeBase',[0,-.06,.998],w);
     }
     function applyStylizedPunch(actor,punchTime){
       // Three readable phases: pull back, extend the right fist, recover.
