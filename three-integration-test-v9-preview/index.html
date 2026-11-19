@@ -414,6 +414,55 @@ body:not(.driver-mode):not(.passenger-mode) #actions #run{grid-column:2;grid-row
 #actions .action:active{filter:brightness(1.32)!important;transform:scale(.94)!important}
 @media(max-width:420px){body:not(.driver-mode):not(.passenger-mode) #actions{width:128px!important;grid-template-columns:repeat(2,60px)!important;grid-template-rows:repeat(2,60px)!important;gap:7px!important}body:not(.driver-mode):not(.passenger-mode) #actions .action,body:not(.driver-mode):not(.passenger-mode) #actions #interact{width:60px!important;height:60px!important;min-width:60px!important;max-width:60px!important}#actions .action .control-svg{width:37px!important;height:37px!important}#joystick{width:49vw!important;height:72dvh!important}}
 @media(max-height:430px){#joystick{height:74dvh!important;min-height:220px!important}body:not(.driver-mode):not(.passenger-mode) #actions{bottom:8px!important;grid-template-rows:repeat(2,58px)!important}body:not(.driver-mode):not(.passenger-mode) #actions .action,body:not(.driver-mode):not(.passenger-mode) #actions #interact{height:58px!important;width:58px!important;min-width:58px!important;max-width:58px!important}}
+
+/* DINDU V9.15 — reference-style combined sprint / jump control */
+#actions #jump{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+body:not(.driver-mode):not(.passenger-mode) #actions #run{
+  grid-column:2!important;
+  grid-row:2!important;
+  width:58px!important;
+  height:58px!important;
+  min-width:58px!important;
+  max-width:58px!important;
+  padding:0!important;
+  gap:0!important;
+  border:1.5px solid rgba(245,248,248,.30)!important;
+  border-radius:50%!important;
+  background:rgba(13,19,25,.10)!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 2px 9px rgba(0,0,0,.20)!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:visible!important;
+}
+#actions #run .control-svg{
+  display:block!important;
+  width:40px!important;
+  height:40px!important;
+  max-width:none!important;
+  max-height:none!important;
+  stroke:#f5f6f6!important;
+  stroke-width:5.2!important;
+  filter:none!important;
+}
+#actions #run small{display:none!important}
+#actions #run.held{
+  border-color:rgba(255,255,255,.68)!important;
+  background:rgba(235,242,246,.16)!important;
+  box-shadow:0 0 0 2px rgba(255,255,255,.10),inset 0 0 0 1px rgba(255,255,255,.10)!important;
+}
+#actions #run.held .control-svg{filter:drop-shadow(0 0 3px rgba(255,255,255,.28))!important}
+@media(max-width:430px){
+  body:not(.driver-mode):not(.passenger-mode) #actions #run{
+    width:54px!important;height:54px!important;min-width:54px!important;max-width:54px!important;
+  }
+  #actions #run .control-svg{width:38px!important;height:38px!important}
+}
+
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
@@ -463,16 +512,15 @@ body:not(.driver-mode):not(.passenger-mode) #actions #run{grid-column:2;grid-row
   <path d="M25 29v8m10-9v10m9-9v9m8-6v7" fill="none" stroke="#65747d" stroke-width="2.6" stroke-linecap="round"/>
   <path d="M9 18l-5-4m13-4l-2-6m42 15l4-5" fill="none" stroke="#e6b65f" stroke-width="3" stroke-linecap="round"/>
 </svg><small>PUNCH</small></button>
-      <button id="run" class="action roundAction" type="button" aria-label="Run"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
-  <circle cx="40" cy="9" r="5.5" fill="#f2c875" stroke="none"/>
-  <path d="M31 18l9 6 8 1 7 7-13 1-9-5-7 10 10 7-3 12M29 33L19 47 9 51M30 27l-11 5-8 0M39 44l10 8-1 6" fill="none" stroke="#f4f7f9" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M7 18h10M4 26h10M49 16l8-5" fill="none" stroke="#e6b65f" stroke-width="3.2" stroke-linecap="round"/>
-</svg><small>RUN</small></button>
-      <button id="jump" class="action roundAction" type="button" aria-label="Jump"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
-  <circle cx="31" cy="13" r="5.4" fill="#f2c875" stroke="none"/>
-  <path d="M29 21l-5 11 10 5 8-8 9 2M25 28l-9-8m18 17L23 48l-3 9m13-12l12 6 5 8" fill="none" stroke="#f4f7f9" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M31 9V2m-6 6l6-6 6 6M49 17c5 5 8 12 8 19m-9-7l9 7 5-9" fill="none" stroke="#e6b65f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-</svg><small>JUMP</small></button>
+      <button id="run" class="action roundAction combinedRunJump" type="button" aria-label="Tap to jump, hold to sprint" title="Tap: jump · Hold: sprint">
+        <svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="38" cy="9" r="5.2" fill="#f5f6f6" stroke="none"/>
+          <path d="M31 18l8 7 10 1 8 7M39 25l-7 11 10 7-2 11M31 36L20 48l-9 3M34 27l-12 3-9-4"
+                fill="none" stroke="#f5f6f6" stroke-width="5.2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+
     </div>
     <div id="carControls" style="display:none">
       <button id="carAccelerate" type="button" aria-label="Accelerator pedal"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M15 10h34l8 46H7z" fill="#283944"/><path d="M22 17h20l6 34H16z" fill="#7d8d96"/><path d="M30 6c-2 7-2 12 1 18l-6 7c-3 4-1 8 4 9l7 1c5 1 9-3 8-7l-4-11c-2-5-6-11-10-17z" fill="#eef3f7" stroke="#101a22" stroke-width="2.5"/><path d="M31 38l12 3" stroke="#d6a95f" stroke-width="3" stroke-linecap="round"/></svg><small>ACCELERATE</small></button>
@@ -2536,12 +2584,29 @@ document.getElementById('vehicleIndicatorHazard').addEventListener('pointerdown'
 document.getElementById('vehicleIndicatorRight').addEventListener('pointerdown',e=>{e.preventDefault();toggleVehicleIndicator('right');});
 document.getElementById('vehicleWindows').addEventListener('pointerdown',e=>{e.preventDefault();const car=currentPlayerVehicle();if(car){car.windowsOpen=!car.windowsOpen;updateVehicleDashboard();}});
 const runButton=document.getElementById('run');
+let runPointerId=null,runPressStartedAt=0;
+function finishCombinedRunJump(e,allowTapJump){
+  if(runPointerId===null || (e&&e.pointerId!==runPointerId))return;
+  const heldFor=performance.now()-runPressStartedAt;
+  runPointerId=null;
+  runHeld=!!keys.shift;
+  runButton.classList.remove('held');
+  // A short tap is a sprint-jump. Holding the same control keeps sprint active.
+  if(allowTapJump&&heldFor<=260&&!player.inCar)jump(true);
+}
 runButton.addEventListener('pointerdown',e=>{
-  e.preventDefault();try{runButton.setPointerCapture(e.pointerId);}catch(_){}const tapNow=performance.now();if(!player.inCar&&tapNow-lastRunTap<360)jump(true);
-  lastRunTap=tapNow;runHeld=true;runButton.classList.add('held');
- });
- ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>runButton.addEventListener(ev,()=>{runHeld=false;runButton.classList.remove('held');}));
-document.getElementById('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
+  e.preventDefault();
+  if(runPointerId!==null)return;
+  runPointerId=e.pointerId;
+  runPressStartedAt=performance.now();
+  try{runButton.setPointerCapture(e.pointerId);}catch(_){}
+  runHeld=true;
+  runButton.classList.add('held');
+});
+runButton.addEventListener('pointerup',e=>finishCombinedRunJump(e,true));
+['pointercancel','lostpointercapture'].forEach(ev=>
+  runButton.addEventListener(ev,e=>finishCombinedRunJump(e,false))
+);
 document.getElementById('punch').addEventListener('pointerdown',e=>{e.preventDefault();punch();});
 document.getElementById('interact').addEventListener('pointerdown',e=>{e.preventDefault();interact();});
  document.getElementById('vehicleClose').addEventListener('pointerdown',e=>{e.preventDefault();closeVehicleMenu();});
@@ -2601,7 +2666,7 @@ function keyboardInput(){
   else if(keys.d||keys.arrowright)stickX=1;
   else if(!joyPointer)stickX=0;
   if(keys.shift)runHeld=true;
-  else if(!joyPointer)runHeld=false;
+  else if(!joyPointer&&runPointerId===null)runHeld=false;
 }
 setInterval(keyboardInput,35);
 function updateDinduClock(){const d=new Date();const el=document.getElementById('clockText');if(el)el.textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
