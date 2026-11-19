@@ -2366,7 +2366,7 @@ window.__DINDU3D_LINK__ = {
     vehicleExiting:vehicleExitTimer>0,
     running:runHeld || (player.inCar&&Math.abs(carSpeed)>6.5),
     moveAmount:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
-    jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,jumpVelocity:player.vy,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/.34):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
+    jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,jumpVelocity:player.vy,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/(jumpLandWasSprint ? .34 : .26)):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
     punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
     vehicleEntryProgress:pendingVehicleEntry?Math.min(1,pendingVehicleEntry.elapsed/.98):0,
     vehicleExitProgress:vehicleExitTimer>0?Math.max(0,Math.min(1,1-vehicleExitTimer/.72)):1,
@@ -3255,47 +3255,95 @@ const playerActor=makeHuman(true);
       aimRigSegment(actor,'RightArm','RightForeArm',[-.10,-.36,.93],w);
       aimRigSegment(actor,'RightForeArm','RightHand',[-.04,-.16,.98],w);
     }
+
     function applyJumpPose(actor,sprintJump,jumpHeight,jumpVelocity=0){
-      const h=Math.max(0,Math.min(1,(Number(jumpHeight)||0)/.72));
+      const height=Math.max(0,Number(jumpHeight)||0);
       const velocity=Number(jumpVelocity)||0;
-      const rising=velocity>.15;
-      const falling=velocity<-.15;
-      const w=Math.max(.82,Math.min(1,.84+.16*h));
-      const lean=sprintJump?.76:.86;
-      const chest=sprintJump?.65:.51;
-      // Reference-style airborne pose: lean forward, keep elbows bent and
-      // bring the knees underneath the body instead of spreading the limbs wide.
-      aimRigSegment(actor,'Spine02','Spine01',[0,lean,chest],w);
-      aimRigSegment(actor,'Spine01','Spine',[0,sprintJump?.81:.90,sprintJump?.58:.43],w);
+      const gravity=24;
+      // Estimate this jump's apex so normal and sprint jumps share the same
+      // reference timing despite using different launch speeds.
+      const predictedApex=Math.max(.18,height+(velocity*velocity)/(2*gravity));
+      const arc=Math.max(0,Math.min(1,height/predictedApex));
+      const rising=velocity>.35;
+      const falling=velocity<-.35;
+      const clamp=(v)=>Math.max(0,Math.min(1,v));
+      const smooth=(a,b,v)=>{
+        const x=clamp((v-a)/(b-a));
+        return x*x*(3-2*x);
+      };
+      const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
 
-      const armOut=falling?(sprintJump?.64:.54):(sprintJump?.54:.46);
-      const armDown=falling?-.23:-.12;
-      aimRigSegment(actor,'LeftArm','LeftForeArm',[armOut,armDown,.82],w);
-      aimRigSegment(actor,'RightArm','RightForeArm',[-armOut,armDown,.82],w);
-      aimRigSegment(actor,'LeftForeArm','LeftHand',[-.24,falling?-.58:-.48,.78],w);
-      aimRigSegment(actor,'RightForeArm','RightHand',[.24,falling?-.58:-.48,.78],w);
+      // Reference sequence: drive one knee forward on takeoff, hold an
+      // asymmetrical airborne tuck, then extend the opposite leg for landing.
+      const driveToAir=rising?smooth(.06,.78,arc):1;
+      const descent=falling?1-smooth(.14,.76,arc):0;
+      const poseWeight=.88+.12*arc;
+      const forward=sprintJump?1:.88;
 
-      if(falling){
-        // Prepare for touchdown: one knee stays tucked while the other leg
-        // reaches down, matching the alternating knee shape in the reference.
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.48,.87],w);
-        aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.83,-.55],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.84,.53],w);
-        aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.98,.16],w);
-      }else{
-        // Rising and near the apex: tuck both legs, with the lead knee higher.
-        aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,sprintJump?-.36:-.44,.93],w);
-        aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.81,-.57],w);
-        aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,sprintJump?-.68:-.72,.72],w);
-        aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.92,-.36],w);
+      const spineA=mix([0,.88,.42],[0,.72,.74],driveToAir);
+      const spineB=mix([0,.91,.34],[0,.73,.69],driveToAir);
+      spineA[1]-=(forward-1)*.05;spineA[2]+=(forward-1)*.06;
+      spineB[1]-=(forward-1)*.05;spineB[2]+=(forward-1)*.06;
+      aimRigSegment(actor,'Spine02','Spine01',mix(spineA,[0,.79,.61],descent),poseWeight);
+      aimRigSegment(actor,'Spine01','Spine',mix(spineB,[0,.80,.57],descent),poseWeight);
+
+      // Left lead arm folds upward near the head; the opposite arm opens
+      // outward to counterbalance. Clavicle bones remain at their rest width.
+      const leftUpper=mix([.52,-.40,.75],[.86,.02,.50],driveToAir);
+      const leftFore=mix([.12,-.28,.95],[.12,.66,.73],driveToAir);
+      const rightUpper=mix([-.48,-.54,.69],[-.76,-.12,.62],driveToAir);
+      const rightFore=mix([-.08,-.22,.97],[-.12,-.45,.88],driveToAir);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',mix(leftUpper,[.76,-.14,.63],descent),poseWeight);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',mix(leftFore,[.12,-.32,.94],descent),poseWeight);
+      aimRigSegment(actor,'RightArm','RightForeArm',mix(rightUpper,[-.66,-.24,.71],descent),poseWeight);
+      aimRigSegment(actor,'RightForeArm','RightHand',mix(rightFore,[-.10,-.43,.89],descent),poseWeight);
+
+      // Keep the lead knee folded while the opposite leg lengthens below
+      // the hips on descent, matching the reference's one-foot catch.
+      const leftThigh=mix([.04,-.38,.91],[.04,-.29,.95],driveToAir);
+      const leftShin=mix([.02,-.74,-.66],[.02,-.72,-.69],driveToAir);
+      const rightThigh=mix([-.04,-.78,.62],[-.04,-.61,.78],driveToAir);
+      const rightShin=mix([-.02,-.96,.18],[-.02,-.88,-.34],driveToAir);
+      aimRigSegment(actor,'LeftUpLeg','LeftLeg',mix(leftThigh,[.04,-.36,.92],descent),poseWeight);
+      aimRigSegment(actor,'LeftLeg','LeftFoot',mix(leftShin,[.02,-.79,-.56],descent),poseWeight);
+      aimRigSegment(actor,'RightUpLeg','RightLeg',mix(rightThigh,[-.04,-.95,.24],descent),poseWeight);
+      aimRigSegment(actor,'RightLeg','RightFoot',mix(rightShin,[-.02,-.99,.08],descent),poseWeight);
+
+      const hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
+      if(hips&&hipsRest){
+        const worldScale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
+        const preload=rising?1-smooth(.04,.42,arc):0;
+        hips.position.copy(hipsRest.position);
+        hips.position.y-=(.035*preload+.018*arc)/worldScale;
+        hips.position.z+=(.018+.022*arc)/worldScale;
       }
-      const footWeight=rising?.88:1;
-      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,0,1],w*footWeight);
-      aimRigSegment(actor,'RightFoot','RightToeBase',[0,0,1],w*footWeight);
+      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,-.10,.99],poseWeight);
+      aimRigSegment(actor,'RightFoot','RightToeBase',[0,-.12,.99],poseWeight);
     }
     function applyLandingPose(actor,weight,sprint,t=0){
-      // Absorb impact through hips and knees, then return to standing.
-      applyCrouchPose(actor,Math.max(0,Math.min(1,weight))*.86,false,t);
+      const w=Math.max(0,Math.min(1,Number(weight)||0));
+      if(w<=.001)return;
+      const hips=actor.rig&&actor.rig.Hips,hipsRest=getRigRest(actor,'Hips');
+      if(hips&&hipsRest){
+        const worldScale=actor.model.getWorldScale(new THREE.Vector3()).y||1;
+        hips.position.copy(hipsRest.position);
+        hips.position.y-=(.14*w)/worldScale;
+        hips.position.z+=(.03*w)/worldScale;
+      }
+      // Catch on the extending leg while the other knee stays folded for a
+      // beat; arms counterbalance, then the pose fades back into running.
+      aimRigSegment(actor,'Spine02','Spine01',[0,.79,.61],w);
+      aimRigSegment(actor,'Spine01','Spine',[0,.80,.57],w);
+      aimRigSegment(actor,'LeftArm','LeftForeArm',[.76,-.14,.63],w);
+      aimRigSegment(actor,'LeftForeArm','LeftHand',[.12,-.32,.94],w);
+      aimRigSegment(actor,'RightArm','RightForeArm',[-.66,-.24,.71],w);
+      aimRigSegment(actor,'RightForeArm','RightHand',[-.10,-.43,.89],w);
+      aimRigSegment(actor,'LeftUpLeg','LeftLeg',[.04,-.36,.92],w);
+      aimRigSegment(actor,'LeftLeg','LeftFoot',[.02,-.79,-.56],w);
+      aimRigSegment(actor,'RightUpLeg','RightLeg',[-.04,-.95,.24],w);
+      aimRigSegment(actor,'RightLeg','RightFoot',[-.02,-.99,.08],w);
+      aimRigSegment(actor,'LeftFoot','LeftToeBase',[0,-.10,.99],w);
+      aimRigSegment(actor,'RightFoot','RightToeBase',[0,-.12,.99],w);
     }
     function applyStylizedPunch(actor,punchTime){
       // Three readable phases: pull back, extend the right fist, recover.
@@ -3342,6 +3390,12 @@ const playerActor=makeHuman(true);
       for(const entry of actor.rootMotionBones||[])entry.bone.position.copy(entry.position);
       if(actor.model&&actor.modelPosition)actor.model.position.copy(actor.modelPosition);
       if(locomotionClip){
+        // Keep the landing catch visible even while the walk/run clip resumes.
+        if(landingWeight>0){
+          applyLandingPose(actor,landingWeight,!!landingSprint,t);
+          actor.group.scale.set(1,1,1);
+          return;
+        }
         if(sneaking)applyCrouchPose(actor,1,true,t);
         if(punching)applyStylizedPunch(actor,punchTime);
         actor.group.scale.set(1,1,1);
