@@ -3178,6 +3178,32 @@ const playerActor=makeHuman(true);
       const bone=actor.rig&&actor.rig[name];
       return bone&&actor.restPose?actor.restPose.find(p=>p.bone===bone):null;
     }
+    function applyHeadLook(actor,yaw=0,pitch=0,weight=1,dt=.016){
+      if(!actor||!actor.rig||!actor.model)return;
+      const w=Math.max(0,Math.min(1,weight));
+      const neck=actor.rig.neck,head=actor.rig.Head;
+      const neckRest=getRigRest(actor,'neck'),headRest=getRigRest(actor,'Head');
+      if(!neck||!head||!neckRest||!headRest)return;
+      // Smooth the target angles to avoid a mechanical snap as the camera moves.
+      if(!Number.isFinite(actor.headLookYaw))actor.headLookYaw=0;
+      if(!Number.isFinite(actor.headLookPitch))actor.headLookPitch=0;
+      const safeDt=Math.max(0,Math.min(Number(dt)||.016,.08));
+      const ease=1-Math.exp(-8.5*safeDt);
+      const targetYaw=THREE.MathUtils.clamp(Number(yaw)||0,-0.524,.524);
+      const targetPitch=THREE.MathUtils.clamp(Number(pitch)||0,-.14,.14);
+      actor.headLookYaw+=(targetYaw-actor.headLookYaw)*ease;
+      actor.headLookPitch+=(targetPitch-actor.headLookPitch)*ease;
+      const y=actor.headLookYaw*w,x=actor.headLookPitch*w;
+      // Split the small turn between neck and head for a natural human glance.
+      const neckTurn=new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(x*.28,y*.38,0,'YXZ'));
+      const headTurn=new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(x*.72,y*.62,0,'YXZ'));
+      neck.quaternion.copy(neckRest.quaternion).multiply(neckTurn);
+      head.quaternion.copy(headRest.quaternion).multiply(headTurn);
+      actor.model.updateMatrixWorld(true);
+    }
+
     function applyNaturalStand(actor){
       // V9.7: keep the measured GLB shoulder/clavicle directions at their
       // original outward angles. The previous pose rotated these short bones
@@ -3392,6 +3418,17 @@ const playerActor=makeHuman(true);
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
        applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0,playerFoldWeight);
+       // Follow the camera orbit with a small, smooth head glance only.
+       // The neutral camera angle equals the neutral head angle; no 360-degree spin.
+       if(!p.inCar&&!a.playerDown){
+         const cam=link.cameraState||{};
+         const cameraDelta=Math.atan2(
+           Math.sin((Number(cam.yaw)||0)-visualPlayerYaw),
+           Math.cos((Number(cam.yaw)||0)-visualPlayerYaw));
+         const headYaw=THREE.MathUtils.clamp(cameraDelta,-0.524,0.524);
+         const headPitch=THREE.MathUtils.clamp(((Number(cam.pitch)||.34)-.34)*.24,-.14,.14);
+         applyHeadLook(playerActor,headYaw,headPitch,1,dt);
+       }
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
         const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
@@ -3405,6 +3442,21 @@ const playerActor=makeHuman(true);
         const npcAction=npcMoving?(actor.actions.walk||actor.actions.run):null;
         switchAction(actor.actions,npcAction,false,actor.restPose);actor.actions.mixer.update(dt);
         applyHumanMotion(actor,npcMoving,npc.punchTimer>0,npc.punchTimer,false,t);
+         // Nearby NPCs glance toward the player; distant NPCs make tiny,
+         // occasional idle glances. Their torso and feet keep their own heading.
+         if(!npcDown){
+           const dx=p.x-npc.x,dz=p.z-npc.z;
+           const distance=Math.hypot(dx,dz);
+           let lookYaw;
+           if(distance<18){
+             const towardPlayer=Math.atan2(dx,dz)-(npc.yaw||0);
+             const wrapped=Math.atan2(Math.sin(towardPlayer),Math.cos(towardPlayer));
+             lookYaw=THREE.MathUtils.clamp(wrapped,-0.524,0.524);
+           }else{
+             lookYaw=Math.sin(t*.58+i*1.73)*.12;
+           }
+           applyHeadLook(actor,lookYaw,0,npcMoving?.58:1,dt);
+         }
       });
       link.parkedCars.forEach((car,i)=>{
         const actor=parkedActors[i];actor.visible=!car.reclaimed&&!(p.inCar&&p.carIndex===i);
