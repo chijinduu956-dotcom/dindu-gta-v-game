@@ -534,6 +534,42 @@ body:not(.driver-mode):not(.passenger-mode) #actions #run{
   #actions #run .runnerIcon{width:40px!important;height:40px!important}
 }
 
+
+/* DINDU V9.18 — stamina gauge below the action buttons */
+body:not(.driver-mode):not(.passenger-mode) #actions{
+  grid-template-rows:68px 68px 17px!important;
+}
+#actions .run-gauge{
+  grid-column:1 / -1!important;grid-row:3!important;
+  justify-self:stretch!important;align-self:center!important;
+  box-sizing:border-box!important;width:100%!important;height:17px!important;
+  padding:1px 4px!important;display:none!important;align-items:center!important;gap:4px!important;
+  border:1px solid rgba(235,242,239,.34)!important;border-radius:5px!important;
+  background:rgba(7,13,17,.82)!important;
+  box-shadow:0 2px 7px rgba(0,0,0,.3),inset 0 1px 2px rgba(255,255,255,.08)!important;
+  pointer-events:none!important;
+}
+#actions .run-gauge.visible{display:flex!important}
+#actions .run-gauge-icon{flex:0 0 auto!important;font-size:13px!important;line-height:13px!important;white-space:nowrap!important}
+#actions .run-gauge-track{
+  position:relative!important;display:block!important;flex:1 1 auto!important;min-width:0!important;
+  height:9px!important;overflow:hidden!important;border:1px solid rgba(220,232,225,.24)!important;
+  border-radius:3px!important;
+  background:repeating-linear-gradient(90deg,rgba(220,232,225,.22) 0 3px,transparent 3px 5px),rgba(80,94,85,.25)!important;
+}
+#actions #runGaugeFill{
+  display:block!important;width:100%;height:100%!important;border-radius:2px!important;
+  box-shadow:0 0 5px currentColor!important;transition:width .12s linear!important;
+}
+@media(max-width:420px){
+  body:not(.driver-mode):not(.passenger-mode) #actions{grid-template-rows:60px 60px 17px!important}
+}
+@media(max-height:430px){
+  body:not(.driver-mode):not(.passenger-mode) #actions{grid-template-rows:58px 58px 17px!important}
+}
+body.driver-mode #actions #runGauge,
+body.passenger-mode #actions #runGauge{display:none!important}
+
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"}}
@@ -592,6 +628,10 @@ body:not(.driver-mode):not(.passenger-mode) #actions #run{
         </svg>
       </button>
 
+    </div>
+    <div id="runGauge" class="run-gauge" role="progressbar" aria-label="Sprint stamina" aria-valuemin="0" aria-valuemax="30" aria-valuenow="30" aria-hidden="true">
+      <span class="run-gauge-icon" aria-hidden="true">🏃‍♀️‍➡️</span>
+      <span class="run-gauge-track"><i id="runGaugeFill"></i></span>
     </div>
     <div id="carControls" style="display:none">
       <button id="carAccelerate" type="button" aria-label="Accelerator pedal"><svg class="control-svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M15 10h34l8 46H7z" fill="#283944"/><path d="M22 17h20l6 34H16z" fill="#7d8d96"/><path d="M30 6c-2 7-2 12 1 18l-6 7c-3 4-1 8 4 9l7 1c5 1 9-3 8-7l-4-11c-2-5-6-11-10-17z" fill="#eef3f7" stroke="#101a22" stroke-width="2.5"/><path d="M31 38l12 3" stroke="#d6a95f" stroke-width="3" stroke-linecap="round"/></svg><small>ACCELERATE</small></button>
@@ -763,7 +803,7 @@ let completed=Math.max(0,Number(saveData.done)||0);
 let cameraYaw=Number(saveData.yaw)||0;let cameraPitch=.34;let cameraOffset=0;let cameraDistance=5.2,cameraCarOffset=0;
 let running=false;
 let paused=true;
-let runHeld=false;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carHandbrakeHeld=false,carSpeed=0;let carWheelSpin=0;
+let runHeld=false;const RUN_STAMINA_MAX=30;let runStamina=RUN_STAMINA_MAX;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carHandbrakeHeld=false,carSpeed=0;let carWheelSpin=0;
 let stickX=0,stickY=0;
 let jumpPressed=false,jumpRunning=false,jumpAirCarry=0,jumpDirX=0,jumpDirZ=1,jumpLandTimer=0,jumpLandWasSprint=false;
 let punchTimer=0;
@@ -1955,6 +1995,31 @@ function isBlocked(x,z){
  return false;
 }
 
+function updateSprintStamina(dt){
+  const gameActive=running&&!paused&&!player.inCar&&!pendingVehicleEntry&&playerDownTimer<=0&&!sneakMode;
+  // The short-tap jump gesture does not count as a sprint hold.
+  const sprintHeld=!!(runHeld&&(runPointerId===null||performance.now()-runPressStartedAt>260));
+  if(gameActive){
+    if(sprintHeld&&Math.hypot(stickX,stickY)>.075){
+      runStamina=Math.max(0,runStamina-dt);
+    }else if(!sprintHeld&&player.y<=.03){
+      runStamina=Math.min(RUN_STAMINA_MAX,runStamina+dt*(RUN_STAMINA_MAX/7));
+    }
+  }
+  const gauge=document.getElementById('runGauge');
+  const fill=document.getElementById('runGaugeFill');
+  const visible=gameActive&&sprintHeld;
+  if(gauge){
+    gauge.classList.toggle('visible',visible);
+    gauge.setAttribute('aria-hidden',visible?'false':'true');
+    gauge.setAttribute('aria-valuenow',String(Math.round(runStamina)));
+  }
+  if(fill){
+    fill.style.width=(runStamina/RUN_STAMINA_MAX*100).toFixed(1)+'%';
+    fill.style.background=runStamina<=5?'#f2b45f':'#7fe3a0';
+  }
+}
+
 function showToast(message){
   const el=document.getElementById('toast');
   el.textContent=message;el.style.display='block';
@@ -2350,6 +2415,7 @@ function render(time){
   syncVehicleModeUI();updateVehicleDashboard();
   const dt=Math.min(.04,(time-lastFrame)/1000||.016);
   lastFrame=time;
+  updateSprintStamina(dt);
 
   if(running&&!paused){
   updateStage3Camera(dt);
@@ -2396,7 +2462,9 @@ function render(time){
  if(analogThrottle>.001){
   const fx=Math.sin(cameraYaw),fz=Math.cos(cameraYaw),rx=Math.cos(cameraYaw),rz=-Math.sin(cameraYaw);
   const mx=fx*(-stickY)+rx*stickX,mz=fz*(-stickY)+rz*stickX,len=Math.hypot(mx,mz)||1;
-  let speed=(sneakMode?1.9:(runHeld?8.8:4.35))*analogThrottle*(speedTimer>0?1.2:1);
+  const sprintRatio=Math.max(0,Math.min(1,runStamina/5));
+  const sprintSpeed=4.35+(8.8-4.35)*sprintRatio;
+  let speed=(sneakMode?1.9:(runHeld?sprintSpeed:4.35))*analogThrottle*(speedTimer>0?1.2:1);
   if(jumpBoostTimer>0)speed*=1.12;
   const nx=player.x+(mx/len)*speed*dt,nz=player.z+(mz/len)*speed*dt;
   if(!isBlocked(nx,nz)){player.x=nx;player.z=nz;}player.yaw=Math.atan2(mx,mz);
@@ -2483,7 +2551,7 @@ window.__DINDU3D_LINK__ = {
   get animationState(){return {
     moving:player.y<.06&&Math.hypot(stickX,stickY)>.075 || (player.inCar&&Math.abs(carSpeed)>.08) || vehicleExitTimer>0,
     vehicleExiting:vehicleExitTimer>0,
-    running:runHeld || (player.inCar&&Math.abs(carSpeed)>6.5),
+    running:(runHeld&&runStamina>.15) || (player.inCar&&Math.abs(carSpeed)>6.5),
     moveAmount:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
     jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,jumpVelocity:player.vy,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/(jumpLandWasSprint ? .34 : .26)):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
     punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
