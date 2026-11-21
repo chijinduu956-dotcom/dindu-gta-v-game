@@ -842,12 +842,8 @@ const npcs=pedestrianCells.map((cell,id)=>{
   hurtCooldown:0,walkPhase:id*.7,route,routeIndex:1,attackCooldown:.4+id*.2,combatTarget:null,punchTimer:0,owner:false};
 });
 const trafficCars=[
-  {id:0,modelType:'hatchback',name:'CITY HATCHBACK',axis:'NS',dir:1,x:-2.3,z:-88,yaw:0,speed:0,maxSpeed:5.4,wheelSpin:0,color:[.72,.18,.13]},
-  {id:1,modelType:'sedan',name:'CITY SEDAN',axis:'NS',dir:-1,x:2.3,z:88,yaw:Math.PI,speed:0,maxSpeed:5.2,wheelSpin:0,color:[.14,.43,.66]},
-  {id:2,modelType:'older-sedan',name:'CLASSIC SEDAN',axis:'NS',dir:1,x:-38.3,z:-55,yaw:0,speed:0,maxSpeed:5.0,wheelSpin:0,color:[.72,.58,.17]},
-  {id:3,modelType:'suv',name:'CITY SUV',axis:'EW',dir:1,x:-88,z:-2.3,yaw:Math.PI/2,speed:0,maxSpeed:5.3,wheelSpin:0,color:[.18,.53,.34]},
-  {id:4,modelType:'wagon',name:'FAMILY WAGON',axis:'EW',dir:-1,x:88,z:2.3,yaw:-Math.PI/2,speed:0,maxSpeed:5.1,wheelSpin:0,color:[.58,.27,.62]},
-  {id:5,modelType:'van',name:'DELIVERY VAN',axis:'EW',dir:-1,x:55,z:38.3,yaw:-Math.PI/2,speed:0,maxSpeed:4.9,wheelSpin:0,color:[.65,.35,.19]}
+  {id:0,modelType:'kairo-piko',name:'KAIRO PIKO',axis:'NS',dir:1,x:-2.3,z:-88,yaw:0,speed:0,maxSpeed:5.4,wheelSpin:0,color:[.12,.38,.78]},
+  {id:1,modelType:'kairo-piko',name:'KAIRO PIKO',axis:'EW',dir:-1,x:88,z:2.3,yaw:-Math.PI/2,speed:0,maxSpeed:5.2,wheelSpin:0,color:[.12,.38,.78]}
 ];
 const trafficControllers=new Map();
 for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++) {
@@ -3296,6 +3292,24 @@ showToast('Tap ENTER DINDU CITY to begin.');
 
       // New low, wide luxury sport-sedan body with a long bonnet and fastback roofline.
       const sideProfile=new THREE.Shape();
+      if(vehicleType==='kairo-piko'){
+        sideProfile.moveTo(-2.31,.34);
+        sideProfile.lineTo(2.20,.34);
+        sideProfile.quadraticCurveTo(2.34,.36,2.34,.52);
+        sideProfile.lineTo(2.20,.78);
+        sideProfile.quadraticCurveTo(2.12,.88,1.82,.90);
+        sideProfile.lineTo(.92,.91);
+        sideProfile.lineTo(.72,1.02);
+        sideProfile.lineTo(.43,1.43);
+        sideProfile.quadraticCurveTo(.36,1.49,.20,1.49);
+        sideProfile.lineTo(-.91,1.49);
+        sideProfile.quadraticCurveTo(-1.08,1.48,-1.18,1.35);
+        sideProfile.lineTo(-1.86,.98);
+        sideProfile.lineTo(-2.14,.86);
+        sideProfile.quadraticCurveTo(-2.33,.78,-2.34,.58);
+        sideProfile.quadraticCurveTo(-2.36,.40,-2.31,.34);
+      }else{
+
       sideProfile.moveTo(-2.31,.34);
       sideProfile.lineTo(2.20,.34);
       sideProfile.quadraticCurveTo(2.34,.36,2.34,.52);
@@ -3308,6 +3322,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       sideProfile.lineTo(-2.14,.83);
       sideProfile.quadraticCurveTo(-2.33,.78,-2.34,.58);
       sideProfile.quadraticCurveTo(-2.36,.40,-2.31,.34);
+      }
       const shellGeometry=new THREE.ExtrudeGeometry(sideProfile,{depth:1.86,steps:1,bevelEnabled:true,bevelSegments:4,bevelSize:.055,bevelThickness:.055,curveSegments:12});
       shellGeometry.translate(0,0,-.93);shellGeometry.rotateY(-Math.PI/2);shellGeometry.computeVertexNormals();
        addMesh(shellGeometry,paint);
@@ -3321,7 +3336,24 @@ showToast('Tap ENTER DINDU CITY to begin.');
          addMesh(new THREE.BoxGeometry(.17,.035,.07),chrome,side*.955,.84,.16);
          addMesh(new THREE.BoxGeometry(.13,.035,.07),chrome,side*.955,.84,-.82);
        }
-       // Side glazing follows the sloped fastback roof instead of appearing as a flat box.
+       // Kairo Piko: taller compact-hatch cabin, upright rear glass and defined pillars.
+      if(vehicleType==='kairo-piko'){
+        for(const side of [-1,1]){
+          quad([[side*.59,1.39,.35],[side*.59,1.39,-.12],[side*.77,.99,-.12],[side*.78,1.02,.67]],glassMat);
+          quad([[side*.59,1.39,-.24],[side*.59,1.39,-.84],[side*.76,1.02,-1.66],[side*.77,.99,-.24]],glassMat);
+        }
+        addMesh(new THREE.BoxGeometry(1.16,.105,1.22),paint,0,1.43,-.34);
+        addMesh(new THREE.BoxGeometry(1.28,.055,1.12),darkPaint,0,1.37,-.34);
+        for(const side of [-1,1]){
+          addBar([side*.755,.92,.73],[side*.58,1.39,.39],.095,paint);
+          addBar([side*.755,.93,-1.68],[side*.58,1.39,-.88],.095,paint);
+          addBar([side*.77,.98,-.17],[side*.77,1.40,-.17],.09,paint);
+          addBar([side*.77,.94,-.93],[side*.77,.94,.70],.025,satin);
+        }
+        quad([[-.70,1.02,.73],[.70,1.02,.73],[.56,1.39,.40],[-.56,1.39,.40]],glassMat);
+        // Kairo Piko rear glass is mounted to its opening hatch.
+      }else{
+// Side glazing follows the sloped fastback roof instead of appearing as a flat box.
        for(const side of [-1,1]){
          quad([[side*.59,1.33,.34],[side*.59,1.33,-.12],[side*.77,.98,-.12],[side*.78,.98,.60]],glassMat);
          quad([[side*.59,1.33,-.25],[side*.59,1.33,-.80],[side*.76,.98,-1.04],[side*.77,.98,-.25]],glassMat);
@@ -3344,6 +3376,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       addMesh(new THREE.BoxGeometry(1.26,.055,.10),satin,0,.91,.82);
       addMesh(new THREE.BoxGeometry(1.38,.055,.10),satin,0,.91,-1.28);
 
+            }
       // Split front grille, sculpted bumpers, bright front lamps and separate amber signals.
       addMesh(new THREE.BoxGeometry(1.78,.16,.16),darkPaint,0,.48,2.24);
       addMesh(new THREE.BoxGeometry(1.88,.055,.07),black,0,.34,2.29);
@@ -3443,7 +3476,29 @@ showToast('Tap ENTER DINDU CITY to begin.');
         group.add(engineBay);engineBay.visible=false;
 
        // Hinged rear trunk with carpet, spare wheel, rim, jack and tool storage.
-       const trunkPivot=new THREE.Group();trunkPivot.position.set(0,.86,-1.28);group.add(trunkPivot);
+       const trunkPivot=new THREE.Group();
+       if(vehicleType==='kairo-piko'){
+         trunkPivot.position.set(0,1.49,-.91);
+         const hatchPanel=new THREE.Mesh(new THREE.BoxGeometry(1.58,.065,1.28),paint);
+         hatchPanel.position.set(0,0,-.58);
+         hatchPanel.rotation.x=-.49;
+         hatchPanel.castShadow=true;
+         hatchPanel.receiveShadow=true;
+         trunkPivot.add(hatchPanel);
+         const hatchGlass=new THREE.Mesh(new THREE.BoxGeometry(1.08,.022,.82),glassMat);
+         hatchGlass.position.set(0,.044,-.43);
+         hatchGlass.rotation.x=-.49;
+         hatchGlass.castShadow=true;
+         hatchGlass.receiveShadow=true;
+         trunkPivot.add(hatchGlass);
+       }else{
+         trunkPivot.position.set(0,.86,-1.28);
+       }
+       group.add(trunkPivot);
+       if(vehicleType!=='kairo-piko'){
+         addMesh(new THREE.BoxGeometry(1.60,.055,.91),paint,0,.015,-.43,trunkPivot);
+       addMesh(new THREE.BoxGeometry(1.42,.025,.78),cabinTrim,0,-.018,-.43,trunkPivot);
+       }
        addMesh(new THREE.BoxGeometry(1.60,.055,.91),paint,0,.015,-.43,trunkPivot);
        addMesh(new THREE.BoxGeometry(1.42,.025,.78),cabinTrim,0,-.018,-.43,trunkPivot);
        const trunkBay=new THREE.Group();
@@ -3501,7 +3556,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       const alloyMat=new THREE.MeshStandardMaterial({color:0xaab3b8,roughness:.26,metalness:.9});
       const rimDark=new THREE.MeshStandardMaterial({color:0x222b31,roughness:.45,metalness:.75});
       const hubMat=new THREE.MeshStandardMaterial({color:0x59656b,roughness:.24,metalness:.92});
-      for(const side of [-1,1])for(const z of [1.43,-1.43]){
+      for(const side of [-1,1])for(const z of (vehicleType==='kairo-piko'?[1.28,-1.28]:[1.43,-1.43])){
         const wheel=new THREE.Group();wheel.position.set(side*.98,.39,z);
         const tyre=addMesh(new THREE.TorusGeometry(.335,.105,14,36),tyreMat,0,0,0,wheel);tyre.rotation.y=Math.PI/2;
         const sidewall=addMesh(new THREE.TorusGeometry(.283,.018,8,32),rubberSide,side*.014,0,0,wheel);sidewall.rotation.y=Math.PI/2;
