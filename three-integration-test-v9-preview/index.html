@@ -70,6 +70,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;col
 #carControls.active{display:grid!important}
 #carControls button{height:46px;min-width:0;border:1px solid #b9c5c8;border-radius:9px;background:linear-gradient(145deg,#344750,#101b22);color:white;font-size:10px;font-weight:900;touch-action:none}
 #carControls #carExit{grid-column:1/-1;background:linear-gradient(145deg,#87433c,#4b2424)}
+#vehicleHorn{touch-action:none;user-select:none;-webkit-user-select:none}
+#vehicleHorn.active{border-color:#f2ca72;background:linear-gradient(145deg,#795b2d,#332619);box-shadow:0 0 0 2px #f2ca7255}
 body.car-mode #actionGrid,body.car-mode #interact{display:none!important}
 
 /* DINDU_PREMIUM_LAUNCHER */
@@ -665,6 +667,7 @@ body.passenger-mode #actions #runGauge{display:none!important}
       <button id="vehicleIndicatorHazard" class="dash-btn hazard-btn" type="button"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8L58 53H6z"/><path d="M32 23v15m0 7v1"/></svg><small>HAZARD</small></button>
       <button id="vehicleIndicatorRight" class="dash-btn" type="button"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M54 32H20m13-13l13 13-13 13M17 17v30"/></svg><small>RIGHT</small></button>
       <button id="vehicleWindows" class="dash-btn" type="button"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 16h46v34H9zM15 22h34v22H15z"/><path d="M32 10v18m-7-7l7 7 7-7"/></svg><small id="vehicleWindowsLabel">WINDOWS</small></button>
+      <button id="vehicleHorn" data-dindu="DINDU_V919_HORN_BUTTON" class="dash-btn horn-btn" type="button" aria-label="Sound vehicle horn"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 25h12l25-14v42L21 39H9z"/><path d="M49 23q10 9 0 18M53 14q17 18 0 36"/></svg><small>HORN</small></button>
     </div>
   </div>
   <div id="toast"></div>
@@ -839,12 +842,12 @@ const npcs=pedestrianCells.map((cell,id)=>{
   hurtCooldown:0,walkPhase:id*.7,route,routeIndex:1,attackCooldown:.4+id*.2,combatTarget:null,punchTimer:0,owner:false};
 });
 const trafficCars=[
-  {id:0,axis:'NS',dir:1,x:-2.3,z:-88,yaw:0,speed:0,maxSpeed:5.4,wheelSpin:0,color:[.72,.18,.13]},
-  {id:1,axis:'NS',dir:-1,x:2.3,z:88,yaw:Math.PI,speed:0,maxSpeed:5.2,wheelSpin:0,color:[.14,.43,.66]},
-  {id:2,axis:'NS',dir:1,x:-38.3,z:-55,yaw:0,speed:0,maxSpeed:5.0,wheelSpin:0,color:[.72,.58,.17]},
-  {id:3,axis:'EW',dir:1,x:-88,z:-2.3,yaw:Math.PI/2,speed:0,maxSpeed:5.3,wheelSpin:0,color:[.18,.53,.34]},
-  {id:4,axis:'EW',dir:-1,x:88,z:2.3,yaw:-Math.PI/2,speed:0,maxSpeed:5.1,wheelSpin:0,color:[.58,.27,.62]},
-  {id:5,axis:'EW',dir:-1,x:55,z:38.3,yaw:-Math.PI/2,speed:0,maxSpeed:4.9,wheelSpin:0,color:[.65,.35,.19]}
+  {id:0,modelType:'hatchback',name:'CITY HATCHBACK',axis:'NS',dir:1,x:-2.3,z:-88,yaw:0,speed:0,maxSpeed:5.4,wheelSpin:0,color:[.72,.18,.13]},
+  {id:1,modelType:'sedan',name:'CITY SEDAN',axis:'NS',dir:-1,x:2.3,z:88,yaw:Math.PI,speed:0,maxSpeed:5.2,wheelSpin:0,color:[.14,.43,.66]},
+  {id:2,modelType:'older-sedan',name:'CLASSIC SEDAN',axis:'NS',dir:1,x:-38.3,z:-55,yaw:0,speed:0,maxSpeed:5.0,wheelSpin:0,color:[.72,.58,.17]},
+  {id:3,modelType:'suv',name:'CITY SUV',axis:'EW',dir:1,x:-88,z:-2.3,yaw:Math.PI/2,speed:0,maxSpeed:5.3,wheelSpin:0,color:[.18,.53,.34]},
+  {id:4,modelType:'wagon',name:'FAMILY WAGON',axis:'EW',dir:-1,x:88,z:2.3,yaw:-Math.PI/2,speed:0,maxSpeed:5.1,wheelSpin:0,color:[.58,.27,.62]},
+  {id:5,modelType:'van',name:'DELIVERY VAN',axis:'EW',dir:-1,x:55,z:38.3,yaw:-Math.PI/2,speed:0,maxSpeed:4.9,wheelSpin:0,color:[.65,.35,.19]}
 ];
 const trafficControllers=new Map();
 for(let ix=-2;ix<=2;ix++) for(let iz=-2;iz<=2;iz++) {
@@ -861,10 +864,9 @@ function addSolidWorldProp(x,z,width,depth,maxY=4.35){
 const staticData=[];
 const stage2BuildingRecords=[];
 const parkedCars=[
-  {x:3,z:0,yaw:Math.PI/2,color:[.025,.045,.065],name:'DINDU GT SPORT'},
-  {x:20,z:22,yaw:0,color:[0.10,0.26,0.42]},
-  {x:-24,z:18,yaw:0,color:[0.55,0.48,0.30]},
-  {x:55,z:-18,yaw:Math.PI/2,color:[0.18,0.36,0.27]}
+  // The only initial parked vehicle is the player's existing personal starter car.
+  // Other parked vehicles are not free spawns; NPC traffic remains on the roads.
+  {x:3,z:0,yaw:Math.PI/2,color:[.025,.045,.065],name:'DINDU GT SPORT',owner:'player',ownerType:'starter'}
 ];
 function ensureVehicleSystems(car){
  if(!car)return car;
@@ -872,6 +874,10 @@ function ensureVehicleSystems(car){
  if(!Number.isFinite(car.health))car.health=100;
  if(!Number.isFinite(car.wheelSpin))car.wheelSpin=0;
  if(typeof car.driverEjected!=='boolean')car.driverEjected=false;
+ if(!Number.isFinite(car.playerBlockedSeconds))car.playerBlockedSeconds=0;
+ if(!Number.isFinite(car.reverseTimer))car.reverseTimer=0;
+ if(!Number.isFinite(car.reverseCooldown))car.reverseCooldown=0;
+ if(!Number.isFinite(car.lastTrafficHornAt))car.lastTrafficHornAt=0;
  if(typeof car.ignition!=='boolean')car.ignition=false;
  if(typeof car.locked!=='boolean')car.locked=false;
  if(typeof car.headlights!=='boolean')car.headlights=false;
@@ -1347,10 +1353,44 @@ function trafficPedestrianGap(car){
  if(!player.inCar&&playerHealth>0)inspect(player.x,player.z);
  return closest;
 }
+function trafficPlayerGap(car){
+ if(playerHealth<=0)return Infinity;
+ const fx=car.axis==='EW'?car.dir:0,fz=car.axis==='NS'?car.dir:0;
+ const dx=player.x-car.x,dz=player.z-car.z;
+ const forward=dx*fx+dz*fz,lateral=-dx*fz+dz*fx;
+ const width=player.inCar?2.2:1.55;
+ return forward>-.25&&forward<10.5&&Math.abs(lateral)<width?forward:Infinity;
+}
+function trafficReversePathClear(car){
+ const fx=car.axis==='EW'?car.dir:0,fz=car.axis==='NS'?car.dir:0;
+ const bx=-fx,bz=-fz;
+ let clear=true;
+ const inspect=(x,z,width=1.55)=>{
+  const dx=x-car.x,dz=z-car.z;
+  const back=dx*bx+dz*bz,lateral=-dx*bz+dz*bx;
+  if(back>-.35&&back<3.8&&Math.abs(lateral)<width+0.45)clear=false;
+ };
+ for(const npc of npcs)if(npc.state!=='down')inspect(npc.x,npc.z,1.0);
+ for(const other of trafficCars)if(other!==car&&!other.stolen)inspect(other.x,other.z,1.9);
+ for(const parked of parkedCars)if(!parked.reclaimed)inspect(parked.x,parked.z,1.9);
+ if(playerHealth>0)inspect(player.x,player.z,player.inCar?2.0:1.0);
+ // The map's solid rectangles are checked along the short reversing corridor too.
+ for(const solid of obstacles){
+  for(const step of [1.0,2.2,3.4]){
+   const sx=car.x+bx*step,sz=car.z+bz*step;
+   if(sx>solid.minX-1.05&&sx<solid.maxX+1.05&&sz>solid.minZ-1.05&&sz<solid.maxZ+1.05){
+    clear=false;break;
+   }
+  }
+  if(!clear)break;
+ }
+ return clear;
+}
 function updateTrafficCars(dt){
  for(const car of trafficCars){
   if(car.stolen||car.stoppedForTheft)continue;
   car.prevX=car.x;car.prevZ=car.z;
+  if(car.reverseCooldown>0)car.reverseCooldown=Math.max(0,car.reverseCooldown-dt);
   const info=nextTrafficStop(car);
   let hold=false;
   if(info&&info.distanceToStop>=0){
@@ -1362,20 +1402,47 @@ function updateTrafficCars(dt){
   const pedestrianStopDistance=Math.max(5.0,car.speed*1.35+2.8);
   const pedestrianHold=pedestrianGap<pedestrianStopDistance;
   if(pedestrianHold)hold=true;
+
+  const playerGap=trafficPlayerGap(car);
+  // Treat the player's vehicle or character as a real obstacle. Brake early enough
+  // for an NPC to stop instead of rolling into the blocked lane.
+  const playerStopDistance=Math.max(5.8,car.speed*1.35+2.6);
+  const playerBlocking=playerGap<playerStopDistance;
+  if(playerBlocking)hold=true;
+  if(playerBlocking&&car.speed<1.0)car.playerBlockedSeconds+=dt;
+  else car.playerBlockedSeconds=Math.max(0,car.playerBlockedSeconds-dt*1.35);
+  const now=performance.now()*.001;
+  if(playerBlocking&&car.playerBlockedSeconds>1.0&&now-car.lastTrafficHornAt>3.0){
+   playDinduHorn(car.x,car.z);
+   car.lastTrafficHornAt=now;
+  }
+  if(playerBlocking&&car.playerBlockedSeconds>2.45&&car.reverseCooldown<=0&&trafficReversePathClear(car)){
+   car.reverseTimer=1.05;
+   car.reverseCooldown=7.0;
+   car.playerBlockedSeconds=0;
+  }
+
+  let reversing=car.reverseTimer>0;
+  if(reversing&&!trafficReversePathClear(car)){car.reverseTimer=0;reversing=false;}
+  if(reversing)car.reverseTimer=Math.max(0,car.reverseTimer-dt);
+
   const target=hold?0:car.maxSpeed;
-  if(target>car.speed)car.speed=Math.min(target,car.speed+2.0*dt);
+  if(reversing)car.speed=0;
+  else if(target>car.speed)car.speed=Math.min(target,car.speed+2.0*dt);
   else car.speed=Math.max(target,car.speed-(pedestrianHold?7.2:5.0)*dt);
+
   const current=car.axis==='NS'?car.z:car.x;
-  let move=car.dir*car.speed*dt;
-  if(pedestrianHold){
+  let move=reversing?-car.dir*1.15*dt:car.dir*car.speed*dt;
+  if(pedestrianHold&&!reversing){
    const safeAdvance=Math.max(0,pedestrianGap-2.8);
    move=car.dir*Math.min(Math.abs(move),safeAdvance);
    if(safeAdvance<=Math.abs(move)+.012)car.speed=0;
   }
   let nextCoord=current+move;
-  if(hold&&info&&info.distanceToStop>=0&&car.dir*(info.stopLine-nextCoord)<0){nextCoord=info.stopLine;car.speed=0;}
+  if(!reversing&&hold&&info&&info.distanceToStop>=0&&car.dir*(info.stopLine-nextCoord)<0){nextCoord=info.stopLine;car.speed=0;}
   if(car.axis==='NS')car.z=nextCoord;else car.x=nextCoord;
-  car.wheelSpin=(car.wheelSpin+car.dir*car.speed*dt/.43)%(Math.PI*2);
+  const signedSpeed=reversing?-car.dir*1.15:car.dir*car.speed;
+  car.wheelSpin=(car.wheelSpin+signedSpeed*dt/.43)%(Math.PI*2);
   if(car.axis==='NS'){
    car.yaw=car.dir>0?0:Math.PI;
    if(car.z>99)car.z=-99;
@@ -1386,6 +1453,7 @@ function updateTrafficCars(dt){
    if(car.x<-99)car.x=99;
   }
  }
+ updateDinduTrafficAudio();
 }
 function playerTrafficInfo(){
   if(!player.inCar) return null;
@@ -2179,7 +2247,8 @@ function updateVehicleEntry(dt){
  let carIndex=e.index;
  if(e.type==='traffic'){
   const source=trafficCars[e.index];if(!source){pendingVehicleEntry=null;return;}source.stolen=true;source.speed=0;source.stoppedForTheft=false;
-  parkedCars.push({x:source.x,z:source.z,yaw:source.yaw,color:source.color.slice(),name:'Stolen traffic vehicle',stolen:true,sourceTrafficId:source.id,driverEjected:true,wheelSpin:source.wheelSpin||0,bonnetOpen:!!source.bonnetOpen,trunkOpen:!!source.trunkOpen,fuel:source.fuel,health:source.health,ignition:false,locked:false,headlights:false,indicators:'off',windowsOpen:false,doorsOpen:false});carIndex=parkedCars.length-1;ensureVehicleSystems(parkedCars[carIndex]);
+  const preservedPaint=Array.isArray(source.color)?source.color.slice(0,3):[.12,.16,.20];
+  parkedCars.push({x:source.x,z:source.z,yaw:source.yaw,color:preservedPaint.slice(),modelType:source.modelType||'sedan',name:source.name||'Stolen traffic vehicle',stolen:true,sourceTrafficId:source.id,driverEjected:true,wheelSpin:source.wheelSpin||0,bonnetOpen:!!source.bonnetOpen,trunkOpen:!!source.trunkOpen,fuel:source.fuel,health:source.health,ignition:false,locked:false,headlights:false,indicators:'off',windowsOpen:false,doorsOpen:false});carIndex=parkedCars.length-1;ensureVehicleSystems(parkedCars[carIndex]);
   showToast('DRIVER EJECTED · VEHICLE READY');
  }
  player.inCar=true;player.carIndex=carIndex;player.seat=e.seat||'driver';ensureVehicleSystems(parkedCars[carIndex]);player.x=parkedCars[carIndex].x;player.z=parkedCars[carIndex].z;player.y=0;player.yaw=parkedCars[carIndex].yaw;document.body.classList.add('car-mode');
@@ -2692,8 +2761,138 @@ document.getElementById('openHtmlBtn').addEventListener('click',()=>{
 },{once:true});
 // Touch buttons.
 let dinduCarAudio=null,dinduCarOsc=null,dinduCarGain=null;
-function startDinduCarSound(){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!dinduCarAudio){dinduCarAudio=new AC();dinduCarOsc=dinduCarAudio.createOscillator();dinduCarGain=dinduCarAudio.createGain();dinduCarOsc.type='sawtooth';dinduCarOsc.frequency.value=70;dinduCarGain.gain.value=0;dinduCarOsc.connect(dinduCarGain);dinduCarGain.connect(dinduCarAudio.destination);dinduCarOsc.start();}dinduCarAudio.resume();dinduCarGain.gain.setTargetAtTime(.025,dinduCarAudio.currentTime,.06);}catch(_){}}
-function stopDinduCarSound(){try{if(dinduCarAudio&&dinduCarGain)dinduCarGain.gain.setTargetAtTime(0,dinduCarAudio.currentTime,.08);}catch(_){}}
+let dinduPlayerHorn=null;
+const dinduTrafficAudioNodes=new Map();
+function ensureDinduAudio(){
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+  if(!dinduCarAudio){
+   dinduCarAudio=new AC();
+   dinduCarOsc=dinduCarAudio.createOscillator();
+   dinduCarGain=dinduCarAudio.createGain();
+   dinduCarOsc.type='sawtooth';dinduCarOsc.frequency.value=70;
+   dinduCarGain.gain.value=0;
+   dinduCarOsc.connect(dinduCarGain);dinduCarGain.connect(dinduCarAudio.destination);
+   dinduCarOsc.start();
+  }
+  if(dinduCarAudio.state==='suspended')dinduCarAudio.resume().catch(()=>{});
+  return dinduCarAudio;
+ }catch(_){return null;}
+}
+function startDinduCarSound(){
+ try{const ctx=ensureDinduAudio();if(ctx&&dinduCarGain)dinduCarGain.gain.setTargetAtTime(.025,ctx.currentTime,.06);}catch(_){}
+}
+function stopDinduCarSound(){
+ try{if(dinduCarAudio&&dinduCarGain)dinduCarGain.gain.setTargetAtTime(0,dinduCarAudio.currentTime,.08);}catch(_){}
+}
+function ensureDinduTrafficAudioNode(car,ctx){
+ let node=dinduTrafficAudioNodes.get(car.id);
+ if(node)return node;
+ const low=ctx.createOscillator(),mid=ctx.createOscillator(),high=ctx.createOscillator();
+ const filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+ const panner=ctx.createStereoPanner?ctx.createStereoPanner():null;
+ low.type='sawtooth';mid.type='triangle';high.type='sawtooth';
+ low.frequency.value=46;mid.frequency.value=104;high.frequency.value=208;
+ filter.type='lowpass';filter.frequency.value=520;filter.Q.value=.62;
+ gain.gain.value=0;
+ low.connect(filter);mid.connect(filter);high.connect(filter);filter.connect(gain);
+ if(panner){gain.connect(panner);panner.connect(ctx.destination);}
+ else gain.connect(ctx.destination);
+ low.start();mid.start();high.start();
+ node={low,mid,high,filter,gain,panner};
+ dinduTrafficAudioNodes.set(car.id,node);
+ return node;
+}
+function updateDinduTrafficAudio(){
+ const ctx=dinduCarAudio;
+ if(!ctx||ctx.state!=='running')return;
+ const now=ctx.currentTime;
+ for(const car of trafficCars){
+  const node=ensureDinduTrafficAudioNode(car,ctx);
+  if(car.stolen||car.stoppedForTheft){
+   node.gain.gain.setTargetAtTime(0,now,.18);
+   continue;
+  }
+  const dx=car.x-player.x,dz=car.z-player.z;
+  const distance=Math.hypot(dx,dz);
+  const proximity=Math.max(0,1-distance/72);
+  const speedRatio=Math.max(0,Math.min(1,Math.abs(car.speed)/(car.maxSpeed||5)));
+  const volume=distance<72?.022*proximity*(.18+.82*Math.pow(speedRatio,.72)):0;
+  node.gain.gain.setTargetAtTime(volume,now,.20);
+  node.low.frequency.setTargetAtTime(42+speedRatio*58,now,.22);
+  node.mid.frequency.setTargetAtTime(96+speedRatio*132,now,.22);
+  node.high.frequency.setTargetAtTime(188+speedRatio*250,now,.22);
+  node.filter.frequency.setTargetAtTime(390+speedRatio*760,now,.22);
+  if(node.panner){
+   const bearing=Math.atan2(dx,dz);
+   const relative=Math.atan2(Math.sin(bearing-(player.yaw||0)),Math.cos(bearing-(player.yaw||0)));
+   node.panner.pan.setTargetAtTime(Math.max(-1,Math.min(1,Math.sin(relative))),now,.25);
+  }
+ }
+}
+function playDinduHorn(x=player.x,z=player.z){
+ try{
+  const ctx=ensureDinduAudio();if(!ctx)return;
+  const dx=(Number(x)||0)-player.x,dz=(Number(z)||0)-player.z;
+  const distance=Math.hypot(dx,dz);
+  if(distance>68)return;
+  const now=ctx.currentTime;
+  const gain=ctx.createGain();
+  const panner=ctx.createStereoPanner?ctx.createStereoPanner():null;
+  const volume=.075*Math.max(.07,1-distance/78);
+  gain.gain.setValueAtTime(.0001,now);
+  gain.gain.exponentialRampToValueAtTime(volume,now+.025);
+  gain.gain.setValueAtTime(volume,now+.22);
+  gain.gain.exponentialRampToValueAtTime(.0001,now+.62);
+  if(panner){
+   const bearing=Math.atan2(dx,dz);
+   const relative=Math.atan2(Math.sin(bearing-(player.yaw||0)),Math.cos(bearing-(player.yaw||0)));
+   panner.pan.setValueAtTime(Math.max(-1,Math.min(1,Math.sin(relative))),now);
+   gain.connect(panner);panner.connect(ctx.destination);
+  }else gain.connect(ctx.destination);
+  const a=ctx.createOscillator(),b=ctx.createOscillator();
+  a.type='square';b.type='triangle';a.frequency.value=392;b.frequency.value=494;
+  a.connect(gain);b.connect(gain);
+  let cleaned=false;
+  const clean=()=>{if(cleaned)return;cleaned=true;try{a.disconnect();b.disconnect();gain.disconnect();if(panner)panner.disconnect();}catch(_){}};
+  a.onended=clean;b.onended=clean;
+  a.start(now);b.start(now);a.stop(now+.63);b.stop(now+.63);
+ }catch(_){}
+}
+// Player horn is sustained while the dashboard control remains pressed.
+function startDinduPlayerHorn(){
+ try{
+  const ctx=ensureDinduAudio();if(!ctx||dinduPlayerHorn)return;
+  const low=ctx.createOscillator(),high=ctx.createOscillator();
+  const filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+  low.type='square';high.type='triangle';
+  low.frequency.value=392;high.frequency.value=494;
+  filter.type='lowpass';filter.frequency.value=1450;filter.Q.value=.7;
+  gain.gain.value=.0001;
+  low.connect(filter);high.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+  const now=ctx.currentTime;
+  gain.gain.setTargetAtTime(.085,now,.025);
+  low.start();high.start();
+  dinduPlayerHorn={ctx,low,high,filter,gain};
+ }catch(_){}
+}
+function stopDinduPlayerHorn(){
+ const horn=dinduPlayerHorn;dinduPlayerHorn=null;if(!horn)return;
+ try{
+  const now=horn.ctx.currentTime;
+  horn.gain.gain.cancelScheduledValues(now);
+  horn.gain.gain.setTargetAtTime(.0001,now,.035);
+  let cleaned=false;
+  const clean=()=>{if(cleaned)return;cleaned=true;try{horn.low.disconnect();horn.high.disconnect();horn.filter.disconnect();horn.gain.disconnect();}catch(_){}};
+  horn.low.onended=clean;horn.high.onended=clean;
+  horn.low.stop(now+.18);horn.high.stop(now+.18);
+ }catch(_){}
+}
+function unlockDinduAudio(){
+ try{const ctx=ensureDinduAudio();if(ctx&&ctx.state==='suspended')ctx.resume().catch(()=>{});}catch(_){}
+}
+document.addEventListener('pointerdown',unlockDinduAudio,{passive:true});
+document.addEventListener('keydown',unlockDinduAudio,{passive:true});
 function bindCarHold(id,setter,needsEngine=false){
  const b=document.getElementById(id);
  b.addEventListener('pointerdown',e=>{
@@ -2722,6 +2921,29 @@ document.getElementById('vehicleIndicatorLeft').addEventListener('pointerdown',e
 document.getElementById('vehicleIndicatorHazard').addEventListener('pointerdown',e=>{e.preventDefault();toggleVehicleIndicator('hazard');});
 document.getElementById('vehicleIndicatorRight').addEventListener('pointerdown',e=>{e.preventDefault();toggleVehicleIndicator('right');});
 document.getElementById('vehicleWindows').addEventListener('pointerdown',e=>{e.preventDefault();const car=currentPlayerVehicle();if(car){car.windowsOpen=!car.windowsOpen;updateVehicleDashboard();}});
+const vehicleHornButton=document.getElementById('vehicleHorn');
+let vehicleHornPointerId=null;
+function releaseVehicleHorn(e){
+ if(vehicleHornPointerId===null||(e&&e.pointerId!==vehicleHornPointerId))return;
+ vehicleHornPointerId=null;
+ vehicleHornButton.classList.remove('active');
+ vehicleHornButton.setAttribute('aria-pressed','false');
+ stopDinduPlayerHorn();
+}
+vehicleHornButton.addEventListener('pointerdown',e=>{
+ e.preventDefault();
+ if(!player.inCar||player.seat==='passenger'||vehicleHornPointerId!==null)return;
+ vehicleHornPointerId=e.pointerId;
+ try{vehicleHornButton.setPointerCapture(e.pointerId);}catch(_){}
+ vehicleHornButton.classList.add('active');
+ vehicleHornButton.setAttribute('aria-pressed','true');
+ startDinduPlayerHorn();
+});
+['pointerup','pointercancel','lostpointercapture'].forEach(type=>
+ vehicleHornButton.addEventListener(type,releaseVehicleHorn)
+);
+window.addEventListener('blur',()=>releaseVehicleHorn());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseVehicleHorn();});
 const runButton=document.getElementById('run');
 let runPointerId=null,runPressStartedAt=0;
 function finishCombinedRunJump(e,allowTapJump){
@@ -3035,11 +3257,13 @@ showToast('Tap ENTER DINDU CITY to begin.');
       next.paused=!!freeze;
       if(freeze)next.time=0;
     };
-    const makeCar=(tint)=>{
+    const makeCar=(tint,modelType='sedan')=>{
+      const vehicleType=modelType||'sedan';
       const group=new THREE.Group();
       const bodyColor=tint?new THREE.Color(tint[0],tint[1],tint[2]):new THREE.Color(0x111b27);
-      const paint=new THREE.MeshPhysicalMaterial({color:bodyColor,roughness:.22,metalness:.72,clearcoat:.92,clearcoatRoughness:.16});
-      const darkPaint=new THREE.MeshPhysicalMaterial({color:bodyColor.clone().multiplyScalar(.68),roughness:.28,metalness:.62,clearcoat:.7});
+      // Everyday road-car paint: factory clearcoat without the mirror-like supercar finish.
+      const paint=new THREE.MeshPhysicalMaterial({color:bodyColor,roughness:.30,metalness:.48,clearcoat:.76,clearcoatRoughness:.24});
+      const darkPaint=new THREE.MeshPhysicalMaterial({color:bodyColor.clone().multiplyScalar(.68),roughness:.34,metalness:.42,clearcoat:.62,clearcoatRoughness:.28});
       const glassMat=new THREE.MeshPhysicalMaterial({color:0x162a39,roughness:.12,metalness:.22,transparent:true,opacity:.62,depthWrite:false,clearcoat:.9,side:THREE.DoubleSide});
       const rubber=new THREE.MeshStandardMaterial({color:0x101214,roughness:.98});
       const rubberSide=new THREE.MeshStandardMaterial({color:0x24292c,roughness:.88});
@@ -3302,9 +3526,56 @@ showToast('Tap ENTER DINDU CITY to begin.');
       addMesh(new THREE.BoxGeometry(.46,.12,.024),plateMat,0,.55,-2.34);
       const exhaustMat=new THREE.MeshStandardMaterial({color:0x899399,metalness:.85,roughness:.28});
       for(const side of [-1,1])addMesh(new THREE.CylinderGeometry(.055,.06,.14,14),exhaustMat,side*.54,.27,-2.28).rotation.x=Math.PI/2;
+      // V9.19 everyday NPC body variations: recognisably different rooflines,
+      // wheelbase proportions and rear profiles rather than one sedan with badges.
+      if(vehicleType==='hatchback'){
+        addMesh(new THREE.BoxGeometry(1.02,.065,.16),darkPaint,0,1.37,-1.20);
+        quad([[-.54,1.31,-1.25],[.54,1.31,-1.25],[.54,1.00,-1.48],[-.54,1.00,-1.48]],glassMat);
+      }else if(vehicleType==='older-sedan'){
+        addMesh(new THREE.BoxGeometry(1.92,.10,.15),chrome,0,.43,2.29);
+        addMesh(new THREE.BoxGeometry(1.92,.10,.15),chrome,0,.42,-2.29);
+      }else if(vehicleType==='suv'){
+        addMesh(new THREE.BoxGeometry(1.25,.12,1.42),paint,0,1.46,-.10);
+        for(const side of [-1,1]){
+          addBar([side*.43,1.52,-.78],[side*.43,1.52,.55],.035,chrome);
+          addMesh(new THREE.BoxGeometry(.08,.14,1.65),darkPaint,side*.91,.40,-.05);
+          addBar([side*.48,1.53,-.92],[side*.48,1.53,.62],.035,chrome);
+        }
+        addMesh(new THREE.BoxGeometry(1.20,.055,.12),black,0,1.55,-.14);
+      }else if(vehicleType==='wagon'){
+        addMesh(new THREE.BoxGeometry(1.14,.09,1.15),paint,0,1.40,-.48);
+        quad([[-.56,1.36,-.84],[.56,1.36,-.84],[.68,.99,-1.34],[-.68,.99,-1.34]],glassMat);
+        for(const side of [-1,1])
+          addBar([side*.47,1.49,-.96],[side*.47,1.49,.49],.028,chrome);
+        addMesh(new THREE.BoxGeometry(.90,.045,.10),darkPaint,0,1.43,-1.13);
+      }else if(vehicleType==='van'){
+        addMesh(new THREE.BoxGeometry(1.35,.78,1.42),paint,0,1.17,-.48);
+        for(const side of [-1,1]){
+          addMesh(new THREE.BoxGeometry(.04,.66,1.25),darkPaint,side*.69,1.14,-.50);
+          addMesh(new THREE.BoxGeometry(.025,.28,.38),glassMat,side*.714,1.34,-.12);
+        }
+        addMesh(new THREE.BoxGeometry(1.34,.65,.045),darkPaint,0,1.16,-1.20);
+      }
+
       const shadow=addMesh(new THREE.CircleGeometry(1,24),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.22,depthWrite:false}),0,.014,0);
       shadow.rotation.x=-Math.PI/2;shadow.scale.set(.92,2.12,1);shadow.castShadow=false;
-      group.userData={doorPivots,bonnetPivot,trunkPivot,engineBay,trunkBay,windowPanes,headlightMeshes,headlightPoints,signalMeshes,wheelVisuals};
+      group.userData={
+        doorPivots,bonnetPivot,trunkPivot,engineBay,trunkBay,windowPanes,
+        headlightMeshes,headlightPoints,signalMeshes,wheelVisuals,vehicleType,
+        paintMaterial:paint,darkPaintMaterial:darkPaint,
+        paintKey:Array.isArray(tint)?tint.slice(0,3).join('|'):''
+      };
+      // Distinct silhouettes: short hatchback, long classic sedan, raised SUV,
+      // extended wagon and boxier delivery van.
+      const typeScale={
+        hatchback:[.99,1.02,.88],
+        sedan:[1,1,1],
+        'older-sedan':[1.02,1.00,1.06],
+        suv:[1.08,1.17,1.03],
+        wagon:[1.02,1.06,1.10],
+        van:[1.10,1.23,1.02]
+      }[vehicleType]||[1,1,1];
+      group.scale.set(typeScale[0],typeScale[1],typeScale[2]);
       scene.add(group);return group;
     };
 const playerActor=makeHuman(true);
@@ -3313,15 +3584,45 @@ const playerActor=makeHuman(true);
     playerActor.model.scale.x *= 1.08;
     playerActor.model.updateMatrixWorld(true);
     const npcActors=link.npcs.map(()=>makeHuman(true));
-    const parkedActors=link.parkedCars.map((car,i)=>makeCar(i===0?null:car.color));
-    const trafficActors=link.trafficCars.map(car=>makeCar(car.color));
-    const activeCar=makeCar(null);
+    const parkedActors=link.parkedCars.map(car=>makeCar(car.color,car.modelType||'sedan'));
+    const trafficActors=link.trafficCars.map(car=>makeCar(car.color,car.modelType||'sedan'));
+    const activeCar=new THREE.Group();
+    function placeSeatedOccupant(driver,carActor,seat='driver'){
+      const s=carActor.scale||new THREE.Vector3(1,1,1);
+      // Cancel model-specific parent scaling so occupants keep human proportions.
+      driver.scale.set(.84/(s.x||1),.84/(s.y||1),.84/(s.z||1));
+      driver.position.set((seat==='passenger'?.42:-.42)/(s.x||1),.04/(s.y||1),.18/(s.z||1));
+      driver.rotation.set(0,0,0);
+    }
     function attachDriver(carActor,seat='driver'){
-      const driver=SkeletonUtils.clone(playerTemplate);driver.scale.multiplyScalar(.90);
-       // Local -X is the driver's left side; +X is the front passenger seat.
-       driver.position.set(seat==='passenger'?.42:-.42,.30,.10);driver.rotation.y=seat==='passenger'?Math.PI:0;
-      driver.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-      carActor.add(driver);return driver;
+      const driver=SkeletonUtils.clone(playerTemplate);
+      const rig={};
+      driver.traverse(o=>{if(o.isBone)rig[o.name]=o;if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+      carActor.add(driver);
+      placeSeatedOccupant(driver,carActor,seat);
+      const seated={model:driver,rig};
+      if(rig.Hips){rig.Hips.position.y-=.40;rig.Hips.position.z+=.025;}
+      // Torso stays upright; thighs reach forward and shins descend toward the floor.
+      aimRigSegment(seated,'Spine02','Spine01',[0,.98,.18],1);
+      aimRigSegment(seated,'Spine01','Spine',[0,.98,.18],1);
+      aimRigSegment(seated,'LeftUpLeg','LeftLeg',[.03,-.22,.97],1);
+      aimRigSegment(seated,'LeftLeg','LeftFoot',[.02,-.96,.18],1);
+      aimRigSegment(seated,'RightUpLeg','RightLeg',[-.03,-.22,.97],1);
+      aimRigSegment(seated,'RightLeg','RightFoot',[-.02,-.96,.18],1);
+      aimRigSegment(seated,'LeftFoot','LeftToeBase',[0,0,1],1);
+      aimRigSegment(seated,'RightFoot','RightToeBase',[0,0,1],1);
+      if(seat==='driver'){
+       aimRigSegment(seated,'LeftShoulder','LeftArm',[.24,-.24,.94],1);
+       aimRigSegment(seated,'LeftArm','LeftForeArm',[.10,-.12,.99],1);
+       aimRigSegment(seated,'RightShoulder','RightArm',[-.24,-.24,.94],1);
+       aimRigSegment(seated,'RightArm','RightForeArm',[-.10,-.12,.99],1);
+      }else{
+       aimRigSegment(seated,'LeftShoulder','LeftArm',[.35,-.72,.42],1);
+       aimRigSegment(seated,'LeftArm','LeftForeArm',[.18,-.92,.25],1);
+       aimRigSegment(seated,'RightShoulder','RightArm',[-.35,-.72,.42],1);
+       aimRigSegment(seated,'RightArm','RightForeArm',[-.18,-.92,.25],1);
+      }
+      return driver;
     }
     const trafficDrivers=trafficActors.map(car=>attachDriver(car,'driver'));
     const trafficPassengers=trafficActors.map(car=>attachDriver(car,'passenger'));
@@ -3640,6 +3941,18 @@ const playerActor=makeHuman(true);
        if(!actor||!actor.userData||!car)return;
        const data=actor.userData;
        const blink=Math.floor(t*2.5)%2===0;
+       // Reapply each vehicle's stored factory paint after transferring an NPC car.
+       if(Array.isArray(car.color)&&car.color.length>=3&&data.paintMaterial){
+         const key=car.color.slice(0,3).join('|');
+         if(key!==data.paintKey){
+           const r=Number(car.color[0]),g=Number(car.color[1]),b=Number(car.color[2]);
+           if([r,g,b].every(Number.isFinite)){
+             data.paintMaterial.color.setRGB(r,g,b);
+             if(data.darkPaintMaterial)data.darkPaintMaterial.color.setRGB(r*.68,g*.68,b*.68);
+             data.paintKey=key;
+           }
+         }
+       }
        for(const lamp of data.headlightMeshes||[])lamp.material.emissiveIntensity=car.headlights?2.3:.12;
        for(const light of data.headlightPoints||[])light.intensity=car.headlights?1.35:0;
        for(const signal of data.signalMeshes||[]){
@@ -3665,7 +3978,7 @@ const playerActor=makeHuman(true);
       const foldRate=foldTarget>playerFoldWeight?6:12;
       playerFoldWeight+=(foldTarget-playerFoldWeight)*(1-Math.exp(-foldRate*dt));
       if(Math.abs(playerFoldWeight-foldTarget)<.001)playerFoldWeight=foldTarget;
-      while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color));
+      while(parkedActors.length<link.parkedCars.length)parkedActors.push(makeCar(link.parkedCars[parkedActors.length].color,link.parkedCars[parkedActors.length].modelType||'sedan'));
       const action=link.vehicleAction;
        playerActor.group.visible=!p.inCar&&(!a.vehicleExiting||a.vehicleExitProgress>.48);playerActor.group.position.set(p.x,p.y,p.z);
        if(visualPlayerYaw===null)visualPlayerYaw=p.yaw||0;
@@ -3727,8 +4040,10 @@ const playerActor=makeHuman(true);
          }
       });
       link.parkedCars.forEach((car,i)=>{
-        const actor=parkedActors[i];actor.visible=!car.reclaimed&&!(p.inCar&&p.carIndex===i);
-        actor.position.set(car.x,.025,car.z);actor.rotation.y=(car.yaw||0);
+        const actor=parkedActors[i],occupied=!!p.inCar&&p.carIndex===i;
+        actor.visible=!car.reclaimed;
+        actor.position.set(occupied?p.x:car.x,.025,occupied?p.z:car.z);
+        actor.rotation.y=occupied?(p.yaw||0):(car.yaw||0);
         updateDoor(actor,action&&action.type==='parked'&&action.index===i?action:null,car,dt);updateVehicleVisuals(actor,car,dt,t);updateCarWheels(actor,car);
       });
       link.trafficCars.forEach((car,i)=>{
@@ -3738,8 +4053,12 @@ const playerActor=makeHuman(true);
         if(trafficPassengers[i])trafficPassengers[i].visible=actor.visible;
         updateDoor(actor,action&&action.type==='traffic'&&action.index===i?action:null,car,dt);updateVehicleVisuals(actor,car,dt,t);updateCarWheels(actor,car);
       });
-      activeCar.visible=!!p.inCar;activeCar.position.set(p.x,.025,p.z);
-      activeCar.rotation.y=(p.yaw||0);const occupiedCar=link.parkedCars[p.carIndex];updateDoor(activeCar,action&&action.type==='parked'&&action.index===p.carIndex?action:null,occupiedCar,dt);updateVehicleVisuals(activeCar,occupiedCar,dt,t);updateCarWheels(activeCar,occupiedCar);playerDriver.position.x=p.seat==='passenger'?.42:-.42;playerDriver.rotation.y=p.seat==='passenger'?Math.PI:0;playerDriver.visible=!!p.inCar;
+      const occupiedActor=p.inCar?parkedActors[p.carIndex]:null;
+      if(occupiedActor){
+       if(playerDriver.parent!==occupiedActor)occupiedActor.add(playerDriver);
+       placeSeatedOccupant(playerDriver,occupiedActor,p.seat||'driver');
+       playerDriver.visible=true;
+      }else playerDriver.visible=false;
     }
     function frame(){
       requestAnimationFrame(frame);
