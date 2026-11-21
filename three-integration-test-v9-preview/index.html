@@ -722,7 +722,7 @@ body.passenger-mode #actions #runGauge{display:none!important}
 <div id="gameError"></div>
 
 <script>
-window.__DINDU3D_MODE = true;
+window.__DINDU3D_MODE = false;
 (function(){
 'use strict';
 
@@ -4128,6 +4128,7 @@ const playerActor=makeHuman(true);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
       renderer.setSize(innerWidth,innerHeight,false);
     });
+     window.__DINDU3D_MODE=true;
      status.textContent='';status.style.display='none';
     window.__DINDU3D_RENDERER__={renderer,scene,camera,player:playerActor.group,cars:parkedActors};
     frame();
