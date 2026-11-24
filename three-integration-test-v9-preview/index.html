@@ -699,6 +699,7 @@ body.passenger-mode #actions #runGauge{display:none!important}
     <button type="button" class="secondary manualAnimation" data-animation="boomDance">BOOM DANCE</button>
     <button type="button" class="secondary manualAnimation" data-animation="youGroove">YOU GROOVE</button>
     <button type="button" class="secondary manualAnimation" data-animation="skill01">SKILL 01</button>
+    <button type="button" class="secondary manualAnimation" data-animation="boxingPractice">BOXING PRACTICE</button>
     <button id="closeAnimations" class="secondary" type="button">RETURN</button>
   </div>
 </div>
@@ -3015,7 +3016,7 @@ document.querySelectorAll('.manualAnimation').forEach(button=>{
       return;
     }
     playerManualAnimation=name;
-    playerManualAnimationTimer=8;
+    playerManualAnimationTimer=Math.max(0.1,playerActor.actions[name].getClip().duration);
     closeOverlay('animationsOverlay');
     if(paused)document.getElementById('welcome').classList.remove('hidden');
   });
@@ -3262,7 +3263,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
        const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
        const actions={
  idle:find(/^idle$/i),
- casualWalk:find(/unsteady.?walk|casual.?walk/i),
+ casualWalk:find(/casual.?walk/i),
  walk:find(/^(walking|walk)$/i),
  run:find(/^running$|^run$/i),
  runFast:find(/run.?fast/i),
@@ -3272,6 +3273,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
  exit:find(/exit|vehicle.?out|car.?out|get.?out/i),
  alert:find(/^alert$/i),
  unsteadyWalk:find(/unsteady.?walk/i),
+ boxingPractice:find(/boxing.?practice/i),
  allNightDance:find(/all.?night.?dance/i),
  boomDance:find(/boom.?dance/i),
  youGroove:find(/you.?groove/i),
