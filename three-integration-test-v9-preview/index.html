@@ -685,10 +685,23 @@ body.passenger-mode #actions #runGauge{display:none!important}
     <div class="subtitle">THE CITY IS YOURS TO EXPLORE</div>
     <div class="coverText">Welcome to Dindu City.</div>
     <button id="startBtn" class="primary">ENTER DINDU CITY</button>
+    <button id="openAnimations" class="secondary" type="button">ANIMATIONS</button>
 
   </div>
 </div>
 
+<div id="animationsOverlay" class="overlay hidden">
+  <div class="panel">
+    <div class="logo" style="font-size:20px">CHARACTER <span>ANIMATIONS</span></div>
+    <div class="coverText">Choose an animation</div>
+    <button type="button" class="secondary manualAnimation" data-animation="unsteadyWalk">UNSTEADY WALK</button>
+    <button type="button" class="secondary manualAnimation" data-animation="allNightDance">ALL NIGHT DANCE</button>
+    <button type="button" class="secondary manualAnimation" data-animation="boomDance">BOOM DANCE</button>
+    <button type="button" class="secondary manualAnimation" data-animation="youGroove">YOU GROOVE</button>
+    <button type="button" class="secondary manualAnimation" data-animation="skill01">SKILL 01</button>
+    <button id="closeAnimations" class="secondary" type="button">RETURN</button>
+  </div>
+</div>
 <div id="missionsOverlay" class="overlay hidden">
   <div class="panel">
     <div class="logo" style="font-size:20px">STORY <span>MISSIONS</span></div>
@@ -824,6 +837,10 @@ let cameraTargetCarOffset=cameraCarOffset;
 let cameraActualDistance=cameraDistance;
 let playerHealth=100;
 let playerDownTimer=0;
+let playerManualAnimation=null;
+let playerManualAnimationTimer=0;
+let playerWasDown=false;
+let playerAriseTimer=0;
 let playerHurtCooldown=0;
 const hospitalSpawn={x:-78,z:9};
 let npcPunchCooldown=0;
@@ -2982,6 +2999,27 @@ let dinduMicIndicatorOn=false;
 document.getElementById('micBtn').addEventListener('click',()=>{dinduMicIndicatorOn=!dinduMicIndicatorOn;document.getElementById('micBtn').classList.toggle('active',dinduMicIndicatorOn);showToast(dinduMicIndicatorOn?'MIC INDICATOR ON · Live voice chat needs online multiplayer.':'MIC INDICATOR OFF')});
 
 document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('openAnimations').addEventListener('click',()=>{
+  document.getElementById('welcome').classList.add('hidden');
+  openOverlay('animationsOverlay');
+});
+document.getElementById('closeAnimations').addEventListener('click',()=>{
+  closeOverlay('animationsOverlay');
+  if(paused)document.getElementById('welcome').classList.remove('hidden');
+});
+document.querySelectorAll('.manualAnimation').forEach(button=>{
+  button.addEventListener('click',()=>{
+    const name=button.dataset.animation;
+    if(!playerActor.actions[name]){
+      showToast('That animation is unavailable in this model.');
+      return;
+    }
+    playerManualAnimation=name;
+    playerManualAnimationTimer=8;
+    closeOverlay('animationsOverlay');
+    if(paused)document.getElementById('welcome').classList.remove('hidden');
+  });
+});
 document.getElementById('pauseBtn').addEventListener('click',pauseGame);
 document.getElementById('missionsBtn').addEventListener('click',()=>{
   renderMissionList();openOverlay('missionsOverlay');
@@ -3105,7 +3143,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
       const finalSize=grounded.getSize(new THREE.Vector3());
       return {width:finalSize.x,height:finalSize.y,depth:finalSize.z,bottom:grounded.min.y};
     };
-    const playerGLTF=await loader.loadAsync('../real-3d-test/assets/player.glb');
+    const playerGLTF=await loader.loadAsync('./assets/dindu-player-animated.glb');
     // The vehicle body is generated from the new premium sedan geometry below;
     // only the player character remains an imported GLB model.
     const playerTemplate=playerGLTF.scene;
@@ -3198,7 +3236,15 @@ showToast('Tap ENTER DINDU CITY to begin.');
        // V9: use the exact joint names reported by the GLB rig inspector.
        // Shoulder joints drive the upper arm; LeftArm/RightArm are upper-arm joints.
        const rig={};
-       model.traverse(o=>{if(o.isBone)rig[o.name]=o;});
+       model.traverse(o=>{
+         if(!o.isBone)return;
+         const raw=o.name.replace(/^mixamorig:/i,'');
+         rig[o.name]=o;
+         rig[raw]=o;
+       });
+       if(rig.Spine1)rig.Spine01=rig.Spine1;
+       if(rig.Spine2)rig.Spine02=rig.Spine2;
+       if(rig.Neck)rig.neck=rig.Neck;
        const requiredRig=['Hips','Spine02','LeftShoulder','LeftArm','LeftForeArm','LeftHand',
          'RightShoulder','RightArm','RightForeArm','RightHand','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase',
          'RightUpLeg','RightLeg','RightFoot','RightToeBase','Head','neck'];
@@ -3214,7 +3260,24 @@ showToast('Tap ENTER DINDU CITY to begin.');
        const mixer=new THREE.AnimationMixer(model);
        const clips=playerGLTF.animations||[];
        const find=(pattern)=>{const clip=clips.find(c=>pattern.test(c.name));return clip?mixer.clipAction(clip):null;};
-       const actions={walk:find(/walk/i),run:find(/run/i),jump:find(/jump/i),punch:find(/punch|attack|fight/i),enter:find(/enter|vehicle.?in|car.?in|get.?in/i),exit:find(/exit|vehicle.?out|car.?out|get.?out/i),mixer,active:null};
+       const actions={
+ idle:find(/^idle$/i),
+ casualWalk:find(/unsteady.?walk|casual.?walk/i),
+ walk:find(/^(walking|walk)$/i),
+ run:find(/^running$|^run$/i),
+ runFast:find(/run.?fast/i),
+ jump:find(/jump/i),punch:find(/punch|attack|fight/i),
+ dead:find(/^dead$|death/i),arise:find(/^arise$|get.?up|stand.?up/i),
+ enter:find(/enter|vehicle.?in|car.?in|get.?in/i),
+ exit:find(/exit|vehicle.?out|car.?out|get.?out/i),
+ alert:find(/^alert$/i),
+ unsteadyWalk:find(/unsteady.?walk/i),
+ allNightDance:find(/all.?night.?dance/i),
+ boomDance:find(/boom.?dance/i),
+ youGroove:find(/you.?groove/i),
+ skill01:find(/skill.?0?1/i),
+ mixer,active:null
+};
        const breathBones=[],armBones=[],legBones=[],headBones=[];
        model.traverse(o=>{
          if(!o.isBone)return;
@@ -3880,7 +3943,17 @@ const playerActor=makeHuman(true);
     function attachDriver(carActor,seat='driver'){
       const driver=SkeletonUtils.clone(playerTemplate);
       const rig={};
-      driver.traverse(o=>{if(o.isBone)rig[o.name]=o;if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+      driver.traverse(o=>{
+        if(o.isBone){
+          const raw=o.name.replace(/^mixamorig:/i,'');
+          rig[o.name]=o;
+          rig[raw]=o;
+        }
+        if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
+      });
+      if(rig.Spine1)rig.Spine01=rig.Spine1;
+      if(rig.Spine2)rig.Spine02=rig.Spine2;
+      if(rig.Neck)rig.neck=rig.Neck;
       carActor.add(driver);
       placeSeatedOccupant(driver,carActor,seat);
       const seated={model:driver,rig};
@@ -4182,7 +4255,7 @@ const playerActor=makeHuman(true);
       aimRigSegment(actor,'RightArm','RightForeArm',[-.10,-.22,.97],weight);
       aimRigSegment(actor,'RightForeArm','RightHand',[-.03,-.06,.99],weight);
     }
-    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1,jumpVelocity=0,idleFoldWeight=0){
+    function applyHumanMotion(actor,moving,punching,punchTime,sneaking,t,jumping=false,sprintJump=false,jumpHeight=0,landingWeight=0,landingSprint=false,vehicleEntering=false,vehicleExiting=false,entryProgress=0,exitProgress=1,jumpVelocity=0,idleFoldWeight=0,alerting=false){
       const locomotionClip=actor.actions.active===actor.actions.walk||actor.actions.active===actor.actions.run;
       // Remove root translation from the imported clips without scaling the body.
       for(const entry of actor.rootMotionBones||[])entry.bone.position.copy(entry.position);
@@ -4199,14 +4272,14 @@ const playerActor=makeHuman(true);
         actor.group.scale.set(1,1,1);
         return;
       }
-      applyNaturalStand(actor);
+      if(!alerting)applyNaturalStand(actor);
       if(vehicleEntering){applyVehicleTransitionPose(actor,true,entryProgress);actor.group.scale.set(1,1,1);return;}
       if(vehicleExiting){applyVehicleTransitionPose(actor,false,exitProgress);actor.group.scale.set(1,1,1);return;}
       if(sneaking){applyCrouchPose(actor,1,!!moving,t);actor.group.scale.set(1,1,1);return;}
       if(jumping){applyJumpPose(actor,!!sprintJump,jumpHeight,jumpVelocity);actor.group.scale.set(1,1,1);return;}
       if(landingWeight>0)applyLandingPose(actor,landingWeight,!!landingSprint,t);
       if(punching)applyStylizedPunch(actor,punchTime);
-      if(idleFoldWeight>0&&!moving&&!punching&&landingWeight<=0)
+      if(!alerting&&idleFoldWeight>0&&!moving&&!punching&&landingWeight<=0)
         applyFoldedHandsPose(actor,idleFoldWeight);
       actor.group.scale.set(1,1,1);
     }
@@ -4255,9 +4328,16 @@ const playerActor=makeHuman(true);
       const p=link.player,a=link.animationState,t=performance.now()*.001;
       const idleEligible=!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.sneaking
         &&!a.vehicleEntering&&!a.vehicleExiting&&!a.playerDown;
+      if(a.playerDown){playerWasDown=true;playerAriseTimer=0;playerManualAnimation=null;}
+      else if(playerWasDown){playerWasDown=false;playerAriseTimer=1.1;}
+      playerAriseTimer=Math.max(0,playerAriseTimer-dt);
+      playerManualAnimationTimer=Math.max(0,playerManualAnimationTimer-dt);
+      if(playerManualAnimationTimer<=0)playerManualAnimation=null;
       if(idleEligible)playerStillSeconds+=dt;
       else playerStillSeconds=0;
-      const foldTarget=idleEligible&&playerStillSeconds>=3?1:0;
+      const idleCycleTime=idleEligible?playerStillSeconds%12:0;
+      const playerAlerting=idleEligible&&idleCycleTime<4;
+      const foldTarget=idleEligible&&!playerAlerting?1:0;
       const foldRate=foldTarget>playerFoldWeight?6:12;
       playerFoldWeight+=(foldTarget-playerFoldWeight)*(1-Math.exp(-foldRate*dt));
       if(Math.abs(playerFoldWeight-foldTarget)<.001)playerFoldWeight=foldTarget;
@@ -4273,15 +4353,20 @@ const playerActor=makeHuman(true);
        const playerShadowSize=a.jumping?1.15:1;
        playerActor.shadow.scale.set(.26*playerShadowSize,.42*playerShadowSize,1);
        playerActor.shadow.material.opacity=a.jumping?.13:.21;
-      const playerAction=(a.jumping||a.punching||a.sneaking||a.vehicleExiting||(a.vehicleEntering&&(a.vehicleEntryProgress||0)>=.38))?null:
+      const playerAction=a.playerDown?(playerActor.actions.dead||null):
+        playerAriseTimer>0?(playerActor.actions.arise||playerActor.actions.idle||null):
+        playerManualAnimation?(playerActor.actions[playerManualAnimation]||null):
+        (a.jumping||a.punching||a.sneaking||a.vehicleExiting||(a.vehicleEntering&&(a.vehicleEntryProgress||0)>=.38))?null:
         a.vehicleEntering?(playerActor.actions.walk||null):
-        a.moving?(a.running?(playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run)):null;
-       switchAction(playerActor.actions,playerAction,false,playerActor.restPose);
+        a.moving?(a.running?(a.moveAmount>=.95?(playerActor.actions.runFast||playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.run||playerActor.actions.walk)):
+          (a.moveAmount<.25?(playerActor.actions.casualWalk||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run))):
+        idleEligible?(playerAlerting?(playerActor.actions.alert||playerActor.actions.idle||null):(playerActor.actions.idle||null)):null;
+      switchAction(playerActor.actions,playerAction,false,playerActor.restPose);
        const stride=Math.max(0,Math.min(1,Number(a.moveAmount)||0));
        if(playerActor.actions.walk)playerActor.actions.walk.timeScale=a.sneaking?(.22+.32*stride):(.38+.82*stride);
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
-       applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0,playerFoldWeight);
+       if(!a.playerDown&&playerAriseTimer<=0&&!playerManualAnimation)applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0,playerFoldWeight,playerAlerting);
        // Follow the camera orbit with a small, smooth head glance only.
        // The neutral camera angle equals the neutral head angle; no 360-degree spin.
        if(!p.inCar&&!a.playerDown){
@@ -4295,7 +4380,10 @@ const playerActor=makeHuman(true);
        }
       link.npcs.forEach((npc,i)=>{
         if(!npcActors[i])npcActors[i]=makeHuman(true);
-        const actor=npcActors[i];actor.group.position.set(npc.x,.025,npc.z);
+        const actor=npcActors[i];
+    actor.userData.npcDanceCooldown=(actor.userData.npcDanceCooldown|| (6+Math.random()*12))-dt;
+    actor.userData.npcDanceTime=Math.max(0,(actor.userData.npcDanceTime||0)-dt);
+    actor.group.position.set(npc.x,.025,npc.z);
         actor.group.rotation.set(npc.state==='down'?Math.PI/2:0,npc.yaw||0,0);
          actor.group.visible=dist2(p.x,p.z,npc.x,npc.z)<105*105;
          actor.shadow.visible=actor.group.visible;
@@ -4303,9 +4391,28 @@ const playerActor=makeHuman(true);
          const npcDown=npc.state==='down';
          actor.shadow.scale.set(npcDown?.35:.26,npcDown?.56:.42,1);
          const npcMoving=npc.state==='walking'||npc.state==='combat';
-        const npcAction=npcMoving?(actor.actions.walk||actor.actions.run):null;
-        switchAction(actor.actions,npcAction,false,actor.restPose);actor.actions.mixer.update(dt);
-        applyHumanMotion(actor,npcMoving,npc.punchTimer>0,npc.punchTimer,false,t);
+        let npcAction=null;
+        const danceNames=['allNightDance','boomDance','youGroove','skill01'];
+        if(npc.state==='down')npcAction=actor.actions.dead||null;
+        else if(npc.state==='gettingUp')npcAction=actor.actions.arise||null;
+        else if(actor.userData.npcDanceTime>0){
+          const activeDance=danceNames.find(name=>actor.actions[name]===actor.actions.active);
+          npcAction=activeDance?actor.actions[activeDance]:null;
+        }else if(npc.state!=='combat'&&!npcMoving&&actor.userData.npcDanceCooldown<=0){
+          const available=danceNames.filter(name=>actor.actions[name]);
+          if(available.length){
+            const chosen=available[Math.floor(Math.random()*available.length)];
+            npcAction=actor.actions[chosen];
+            actor.userData.npcDanceTime=4;
+            actor.userData.npcDanceCooldown=12+Math.random()*18;
+          }
+        }
+        if(!npcAction&&!npcDown&&!npcMoving)npcAction=actor.actions.idle||null;
+        if(!npcAction&&npcMoving)npcAction=actor.actions.walk||actor.actions.run||null;
+        switchAction(actor.actions,npcAction,false,actor.restPose);
+        actor.actions.mixer.update(dt);
+        if(npc.state!=='down'&&npc.state!=='gettingUp'&&actor.userData.npcDanceTime<=0)
+          applyHumanMotion(actor,npcMoving,npc.punchTimer>0,npc.punchTimer,false,t);
          // Nearby NPCs glance toward the player; distant NPCs make tiny,
          // occasional idle glances. Their torso and feet keep their own heading.
          if(!npcDown){
