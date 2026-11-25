@@ -37,6 +37,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;col
 .action{height:57px;border-radius:50%;border:2px solid #c3cbcd;background:linear-gradient(145deg,#34434aeb,#101b22ee);color:white;font-size:9px;font-weight:bold;letter-spacing:.5px;box-shadow:0 4px 10px #0008;touch-action:none}
 .action:active,.smallBtn:active{background:#8b6d3f}
 #interact{display:block;margin:0 0 8px auto;width:112px;height:37px;border-radius:9px;background:#a77d3aee;border:1px solid #f0cf91;color:#fff;font-weight:bold;font-size:10px}
+#stopAnimationBtn{display:none;position:fixed;z-index:35;left:50%;top:max(58px,calc(env(safe-area-inset-top) + 50px));transform:translateX(-50%);padding:11px 20px;border:1px solid #f4d18b;border-radius:10px;background:linear-gradient(145deg,#9a3e35,#51211f);color:#fff;font-size:11px;font-weight:900;letter-spacing:1px;box-shadow:0 5px 18px #000a;touch-action:manipulation}
+#stopAnimationBtn.active{display:block!important}
 #toast{position:absolute;left:50%;bottom:180px;transform:translateX(-50%);background:#101820eF;border:1px solid #c8a15e;border-radius:8px;padding:9px 13px;font-size:11px;text-align:center;max-width:85%;display:none}
 #prompt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#101820c9;border:1px solid #b99558;padding:8px 12px;border-radius:7px;font-size:10px;display:none;text-align:center}
 .overlay{position:absolute;inset:0;background:linear-gradient(120deg,#09131bee,#17262aeF);display:flex;align-items:center;justify-content:center;padding:18px;z-index:5}
@@ -702,6 +704,7 @@ body.passenger-mode #actions #runGauge{display:none!important}
     <button id="closeAnimations" class="secondary" type="button">RETURN</button>
   </div>
 </div>
+<div id="npcInteractionOverlay" class="overlay hidden"><div class="panel"><div class="logo" style="font-size:20px">NPC <span>INTERACTION</span></div><div class="coverText">Choose how you want to interact</div><button id="npcAnimationChoice" class="secondary" type="button">ANIMATIONS</button><button id="npcHandshakeChoice" class="secondary" type="button">SHAKE HANDS</button><button id="npcConversationChoice" class="secondary" type="button">CONVERSATION</button><button id="npcInteractionClose" class="secondary" type="button">CLOSE</button></div></div>
 <div id="missionsOverlay" class="overlay hidden">
   <div class="panel">
     <div class="logo" style="font-size:20px">STORY <span>MISSIONS</span></div>
@@ -731,6 +734,7 @@ body.passenger-mode #actions #runGauge{display:none!important}
   </div>
 </div>
 
+<button id="stopAnimationBtn" type="button">STOP ANIMATION</button>
 <div id="gameError"></div>
 
 <script>
@@ -820,6 +824,7 @@ let running=false;
 let paused=true;
 let runHeld=false;const RUN_STAMINA_MAX=30;let runStamina=RUN_STAMINA_MAX;let carAccelerateHeld=false,carBrakeHeld=false,carReverseHeld=false,carHandbrakeHeld=false,carSpeed=0;let carWheelSpin=0;
 let stickX=0,stickY=0;
+let dinduManualAnimationLock=false,dinduSelectedNpcIndex=null;
 let jumpPressed=false,jumpRunning=false,jumpAirCarry=0,jumpDirX=0,jumpDirZ=1,jumpLandTimer=0,jumpLandWasSprint=false;
 let punchTimer=0;
 let shieldTimer=0;
@@ -1532,6 +1537,7 @@ function updateNpcs(dt){
  for(const n of npcs){
   n.hurtCooldown=Math.max(0,n.hurtCooldown-dt);n.attackCooldown=Math.max(0,(n.attackCooldown||0)-dt);
   n.punchTimer=Math.max(0,(n.punchTimer||0)-dt);
+  if(n.manualInteraction){n.combatTarget=null;n.punchTimer=0;continue;}
   if(n.state==='down'){
    if(n.health<=0){n.respawnTimer-=dt;if(n.respawnTimer<=0){
     const route=n.route||makeSidewalkRoute(-1,0);n.x=route[0][0];n.z=route[0][1];n.health=100;
@@ -2301,25 +2307,25 @@ function leavePlayerVehicle(){
       if(p>=1){vehicleExitMotion=null;saveGame();}
     }
 function interact(){
- if(pendingVehicleEntry)return;
+ if(dinduManualAnimationLock||pendingVehicleEntry)return;
  if(vehicleMenuState){closeVehicleMenu();return;}
  if(player.inCar){leavePlayerVehicle();return;}
  const m=currentMission();if(m){const p=targetFor(m);if(distance(player.x,player.z,p.x,p.z)<5){finishMission();return;}}
- let closestNpc=null,npcDistance=5.2;
- for(const n of npcs){if(n.state==='down'||n.state==='gettingUp')continue;const d=distance(player.x,player.z,n.x,n.z);if(d<npcDistance){npcDistance=d;closestNpc=n;}}
+ let closestNpc=null,closestNpcIndex=null,npcDistance=5.2;
+ for(let i=0;i<npcs.length;i++){const n=npcs[i];if(n.state==='down'||n.state==='gettingUp'||n.manualInteraction)continue;const d=distance(player.x,player.z,n.x,n.z);if(d<npcDistance){npcDistance=d;closestNpc=n;closestNpcIndex=i;}}
  let closestParked=-1,parkedDistance=4.6;
  parkedCars.forEach((c,i)=>{if(c.reclaimed)return;const d=distance(player.x,player.z,c.x,c.z);if(d<parkedDistance){parkedDistance=d;closestParked=i;}});
  let closestTraffic=-1,trafficDistance=4.6;
  trafficCars.forEach((c,i)=>{if(c.stolen)return;const d=distance(player.x,player.z,c.x,c.z);if(d<trafficDistance){trafficDistance=d;closestTraffic=i;}});
  if(closestNpc&&npcDistance<=Math.min(4.3,parkedDistance,trafficDistance)){
-  closestNpc.state='alert';closestNpc.stateTimer=2.8;closestNpc.combatTarget=null;closestNpc.yaw=Math.atan2(player.x-closestNpc.x,player.z-closestNpc.z);return;
+  dinduSelectedNpcIndex=closestNpcIndex;closestNpc.state='alert';closestNpc.stateTimer=2.8;closestNpc.combatTarget=null;closestNpc.yaw=Math.atan2(player.x-closestNpc.x,player.z-closestNpc.z);openOverlay('npcInteractionOverlay');return;
  }
  if(closestParked>=0&&parkedDistance<=trafficDistance){openVehicleMenu('parked',closestParked);return;}
  if(closestTraffic>=0){openVehicleMenu('traffic',closestTraffic);return;}
 }
 function punch(){
- if(player.inCar||playerDownTimer>0||pendingVehicleEntry)return;
- punchTimer=.72;let target=null,best=2.65;const fx=Math.sin(player.yaw),fz=Math.cos(player.yaw);
+ if(dinduManualAnimationLock||player.inCar||playerDownTimer>0||pendingVehicleEntry)return;
+ punchTimer=Math.max(.72,Math.min(1.6,window.__DINDU3D_ANIMATION_API__?.attackDuration?.()||.72));let target=null,best=2.65;const fx=Math.sin(player.yaw),fz=Math.cos(player.yaw);
  for(const n of npcs){
   if(n.state==='down'||n.state==='gettingUp')continue;
   const dx=n.x-player.x,dz=n.z-player.z,d=Math.hypot(dx,dz);if(d>=best)continue;
@@ -2328,7 +2334,7 @@ function punch(){
  if(target)damageNpc(target,25,{kind:'player'});
 }
 function jump(longJump=false){
- if(player.inCar||player.y>.03||playerDownTimer>0||pendingVehicleEntry)return;
+ if(dinduManualAnimationLock||player.inCar||player.y>.03||playerDownTimer>0||pendingVehicleEntry)return;
  const push=Math.min(1,Math.hypot(stickX,stickY));
  const sprintLeap=!!longJump||(runHeld&&push>.42);
  jumpRunning=sprintLeap;jumpLandTimer=0;jumpLandWasSprint=false;
@@ -2626,12 +2632,13 @@ window.__DINDU3D_LINK__ = {
     distance:cameraActualDistance
   };},
   get animationState(){return {
-    moving:player.y<.06&&Math.hypot(stickX,stickY)>.075 || (player.inCar&&Math.abs(carSpeed)>.08) || vehicleExitTimer>0,
+    moving:!dinduManualAnimationLock&&(player.y<.06&&Math.hypot(stickX,stickY)>.075 || (player.inCar&&Math.abs(carSpeed)>.08) || vehicleExitTimer>0),
     vehicleExiting:vehicleExitTimer>0,
-    running:(runHeld&&runStamina>.15) || (player.inCar&&Math.abs(carSpeed)>6.5),
-    moveAmount:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
-    jumping:player.y>.06,sprintJump:jumpRunning&&player.y>.06,jumpHeight:player.y,jumpVelocity:player.vy,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/(jumpLandWasSprint ? .34 : .26)):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
-    punching:punchTimer>0,punchTime:punchTimer,sneaking:sneakMode,vehicleEntering:!!pendingVehicleEntry,
+    running:!dinduManualAnimationLock&&((runHeld&&runStamina>.15) || (player.inCar&&Math.abs(carSpeed)>6.5)),
+    moveAmount:dinduManualAnimationLock?0:Math.max(0,Math.min(1,(Math.hypot(stickX,stickY)-.075)/.925)),
+    manualAnimation:dinduManualAnimationLock,
+    jumping:!dinduManualAnimationLock&&player.y>.06,sprintJump:!dinduManualAnimationLock&&jumpRunning&&player.y>.06,jumpHeight:player.y,jumpVelocity:player.vy,landingWeight:jumpLandTimer>0?Math.min(1,jumpLandTimer/(jumpLandWasSprint ? .34 : .26)):0,landingSprint:jumpLandWasSprint&&jumpLandTimer>0,
+    punching:!dinduManualAnimationLock&&punchTimer>0,punchTime:punchTimer,sneaking:!dinduManualAnimationLock&&sneakMode,vehicleEntering:!!pendingVehicleEntry,
     vehicleEntryProgress:pendingVehicleEntry?Math.min(1,pendingVehicleEntry.elapsed/.98):0,
     vehicleExitProgress:vehicleExitTimer>0?Math.max(0,Math.min(1,1-vehicleExitTimer/.72)):1,
     playerDown:playerDownTimer>0 || playerHealth<=0,carSpeed,carWheelSpin
@@ -2645,6 +2652,7 @@ const joy=document.getElementById('joystick');
 const stick=document.getElementById('stick');
 let joyPointer=null,joyCenterX=0,joyCenterY=0,joyMax=76;
 function setStick(e){
+  if(dinduManualAnimationLock){stickX=stickY=0;return;}
   const r=joy.getBoundingClientRect();
   let dx=e.clientX-joyCenterX,dy=e.clientY-joyCenterY;
   const len=Math.hypot(dx,dy)||1;
@@ -2656,7 +2664,7 @@ function setStick(e){
   stick.style.transform='translate(-50%,-50%)';
 }
 joy.addEventListener('pointerdown',e=>{
-  if(joyPointer!==null)return;
+  if(dinduManualAnimationLock||joyPointer!==null)return;
   e.preventDefault();const tapNow=performance.now();
   if(!player.inCar&&tapNow-joyTapAt<340){sneakMode=!sneakMode;showToast(sneakMode?'STEALTH MODE ON':'STEALTH MODE OFF');joyTapAt=0;}
   else joyTapAt=tapNow;
@@ -2961,7 +2969,7 @@ function finishCombinedRunJump(e,allowTapJump){
 }
 runButton.addEventListener('pointerdown',e=>{
   e.preventDefault();
-  if(runPointerId!==null)return;
+  if(dinduManualAnimationLock||runPointerId!==null)return;
   runPointerId=e.pointerId;
   runPressStartedAt=performance.now();
   try{runButton.setPointerCapture(e.pointerId);}catch(_){}
@@ -3000,20 +3008,17 @@ document.getElementById('closeAnimations').addEventListener('click',()=>{
 });
 document.querySelectorAll('.manualAnimation').forEach(button=>{
   button.addEventListener('click',()=>{
-    const name=button.dataset.animation;
-    const api=window.__DINDU3D_ANIMATION_API__;
-    if(!api || !api.play(name)){
-      showToast('Character animations are still loading or unavailable.');
-      return;
-    }
-    closeOverlay('animationsOverlay');
-    if(paused){
-      paused=false;
-      running=true;
-      closeOverlay('welcome');
-    }
+    const name=button.dataset.animation,api=window.__DINDU3D_ANIMATION_API__;
+    if(!api||!api.play(name,dinduSelectedNpcIndex)){showToast('Animation or nearby NPC unavailable.');return;}
+    dinduSelectedNpcIndex=null;closeOverlay('animationsOverlay');closeOverlay('npcInteractionOverlay');
+    if(paused){paused=false;running=true;closeOverlay('welcome');}
   });
 });
+document.getElementById('npcAnimationChoice').addEventListener('click',()=>{closeOverlay('npcInteractionOverlay');openOverlay('animationsOverlay');});
+document.getElementById('npcHandshakeChoice').addEventListener('click',()=>{const api=window.__DINDU3D_ANIMATION_API__;if(api&&api.handshake(dinduSelectedNpcIndex)){dinduSelectedNpcIndex=null;closeOverlay('npcInteractionOverlay');}else showToast('Move closer to an available NPC first.');});
+document.getElementById('npcConversationChoice').addEventListener('click',()=>showToast('CONVERSATION SPACE COMING SOON.'));
+document.getElementById('npcInteractionClose').addEventListener('click',()=>{closeOverlay('npcInteractionOverlay');dinduSelectedNpcIndex=null;});
+document.getElementById('stopAnimationBtn').addEventListener('click',()=>{window.__DINDU3D_ANIMATION_API__?.stop();dinduSelectedNpcIndex=null;showToast('ANIMATION STOPPED.');});
 document.getElementById('pauseBtn').addEventListener('click',pauseGame);
 document.getElementById('missionsBtn').addEventListener('click',()=>{
   renderMissionList();openOverlay('missionsOverlay');
@@ -3048,6 +3053,7 @@ window.addEventListener('keydown',e=>{
 });
 window.addEventListener('keyup',e=>{delete keys[e.key.toLowerCase()];});
 function keyboardInput(){
+  if(dinduManualAnimationLock){stickX=stickY=0;runHeld=false;return;}
   if(keys.w||keys.arrowup)stickY=-1;
   else if(keys.s||keys.arrowdown)stickY=1;
   else if(!joyPointer)stickY=0;
@@ -3057,6 +3063,7 @@ function keyboardInput(){
   if(keys.shift)runHeld=true;
   else if(!joyPointer&&runPointerId===null)runHeld=false;
 }
+window.__DINDU_MANUAL_LOCK__=locked=>{dinduManualAnimationLock=!!locked;stickX=stickY=0;runHeld=false;jumpPressed=false;punchTimer=0;if(locked){joyPointer=null;joy.classList.remove('active');stick.style.left='0px';stick.style.top='0px';stick.style.transform='translate(-50%,-50%)';joy.style.removeProperty('--joy-base-x');joy.style.removeProperty('--joy-base-y');runPointerId=null;runButton.classList.remove('held');}};
 setInterval(keyboardInput,35);
 function updateDinduClock(){const d=new Date();const el=document.getElementById('clockText');if(el)el.textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 updateDinduClock();setInterval(updateDinduClock,1000);
@@ -3078,7 +3085,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
     const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
     const SkeletonUtils=await import('three/addons/utils/SkeletonUtils.js');
     const link=window.__DINDU3D_LINK__;
-    let playerManualAnimation=null,playerManualAnimationTimer=0;
+    let playerManualAnimation=null,manualAnimationNpcIndex=null,manualHandshakeActive=false;
     let playerWasDown=false,playerAriseTimer=0;
     if(!link||!link.player||!Array.isArray(link.obstacles)) throw new Error('Game-to-3D bridge was not found.');
 
@@ -3958,13 +3965,38 @@ showToast('Tap ENTER DINDU CITY to begin.');
     };
 const playerActor=makeHuman(true);
     window.__DINDU3D_ANIMATION_API__ = {
-      play(name){
-        if(!window.__DINDU3D_MODE)return false;
-        const action=playerActor.actions[name];
-        if(!action)return false;
-        playerManualAnimation=name;
-        playerManualAnimationTimer=Math.max(0.1,action.getClip().duration);
-        return true;
+      attackDuration(){return playerActor.actions.punch?.getClip().duration||.72;},
+      prepareNpc(index){
+        if(!Number.isInteger(index)||index<0||index>=link.npcs.length)return false;
+        const npc=link.npcs[index];if(!npc||npc.state==='down'||npc.state==='gettingUp')return false;
+        const yaw=link.player.yaw||0;npc.x=link.player.x+Math.sin(yaw)*1.55;npc.z=link.player.z+Math.cos(yaw)*1.55;
+        npc.yaw=yaw+Math.PI;npc.manualInteraction=true;npc.combatTarget=null;npc.punchTimer=0;npc.state='alert';npc.stateTimer=999999;manualAnimationNpcIndex=index;return true;
+      },
+      play(name,index=null){
+        if(!window.__DINDU3D_MODE||!playerActor.actions[name])return false;
+        this.stop();
+        if(index!==null&&index!==undefined){
+          if(!npcActors[index]||!npcActors[index].actions[name]||!this.prepareNpc(index))return false;
+          const other=npcActors[index].actions[name];other.setLoop(THREE.LoopRepeat,Infinity);other.clampWhenFinished=false;
+          switchAction(npcActors[index].actions,other,false,npcActors[index].restPose);
+        }
+        manualHandshakeActive=false;playerManualAnimation=name;
+        const action=playerActor.actions[name];action.setLoop(THREE.LoopRepeat,Infinity);action.clampWhenFinished=false;
+        switchAction(playerActor.actions,action,false,playerActor.restPose);
+        window.__DINDU_MANUAL_LOCK__?.(true);document.getElementById('stopAnimationBtn')?.classList.add('active');return true;
+      },
+      handshake(index){
+        if(!window.__DINDU3D_MODE)return false;this.stop();if(!npcActors[index]||!this.prepareNpc(index))return false;
+        manualHandshakeActive=true;const a=playerActor.actions.idle,b=npcActors[index].actions.idle;
+        if(a)switchAction(playerActor.actions,a,false,playerActor.restPose);
+        if(b)switchAction(npcActors[index].actions,b,false,npcActors[index].restPose);
+        window.__DINDU_MANUAL_LOCK__?.(true);document.getElementById('stopAnimationBtn')?.classList.add('active');return true;
+      },
+      stop(){
+        const old=manualAnimationNpcIndex;playerManualAnimation=null;manualHandshakeActive=false;manualAnimationNpcIndex=null;
+        playerActor.actions.mixer.stopAllAction();playerActor.actions.active=null;
+        if(old!==null&&link.npcs[old]){link.npcs[old].manualInteraction=false;link.npcs[old].state='alert';link.npcs[old].stateTimer=1.2;const a=npcActors[old];if(a){a.actions.mixer.stopAllAction();a.actions.active=null;}}
+        window.__DINDU_MANUAL_LOCK__?.(false);document.getElementById('stopAnimationBtn')?.classList.remove('active');return true;
       }
     };
     // Keep the fitted height at 1.78m, but give the on-foot player a little more
@@ -4325,6 +4357,8 @@ const playerActor=makeHuman(true);
         applyFoldedHandsPose(actor,idleFoldWeight);
       actor.group.scale.set(1,1,1);
     }
+    function applyHandshakePose(actor,t){aimRigSegment(actor,'RightShoulder','RightArm',[.42,-.30,.86],1);aimRigSegment(actor,'RightArm','RightForeArm',[.08,-.12,.99],1);aimRigSegment(actor,'RightForeArm','RightHand',[0,-.03,1],1);}
+    function resetManualRootMotion(actor){for(const e of actor.rootMotionBones||[])e.bone.position.copy(e.position);if(actor.model&&actor.modelPosition)actor.model.position.copy(actor.modelPosition);actor.model?.updateMatrixWorld(true);}
     function updateDoor(actor,action,car,dt){
        const doors=actor&&actor.userData&&actor.userData.doorPivots||[];
        const openAll=!!(car&&car.doorsOpen);
@@ -4368,18 +4402,16 @@ const playerActor=makeHuman(true);
     }
     function syncActors(dt){
       const p=link.player,a=link.animationState,t=performance.now()*.001;
-      const idleEligible=!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.sneaking
+      const idleEligible=!p.inCar&&!a.moving&&!a.jumping&&!a.punching&&!a.sneaking&&!a.manualAnimation
         &&!a.vehicleEntering&&!a.vehicleExiting&&!a.playerDown;
-      if(a.playerDown){playerWasDown=true;playerAriseTimer=0;playerManualAnimation=null;}
+      if(a.playerDown){playerWasDown=true;playerAriseTimer=0;if(playerManualAnimation||manualHandshakeActive)window.__DINDU3D_ANIMATION_API__?.stop();playerManualAnimation=null;}
       else if(playerWasDown){playerWasDown=false;playerAriseTimer=1.1;}
       playerAriseTimer=Math.max(0,playerAriseTimer-dt);
-      playerManualAnimationTimer=Math.max(0,playerManualAnimationTimer-dt);
-      if(playerManualAnimationTimer<=0)playerManualAnimation=null;
       if(idleEligible)playerStillSeconds+=dt;
       else playerStillSeconds=0;
-      const idleCycleTime=idleEligible?playerStillSeconds%12:0;
-      const playerAlerting=idleEligible&&idleCycleTime<4;
-      const foldTarget=idleEligible&&!playerAlerting?1:0;
+      const idleCycleTime=idleEligible&&playerStillSeconds>=5?(playerStillSeconds-5)%21:-1;
+      const playerAlerting=idleCycleTime>=0&&idleCycleTime<2;
+      const foldTarget=idleEligible&&idleCycleTime>=6?1:0;
       const foldRate=foldTarget>playerFoldWeight?6:12;
       playerFoldWeight+=(foldTarget-playerFoldWeight)*(1-Math.exp(-foldRate*dt));
       if(Math.abs(playerFoldWeight-foldTarget)<.001)playerFoldWeight=foldTarget;
@@ -4398,17 +4430,22 @@ const playerActor=makeHuman(true);
       const playerAction=a.playerDown?(playerActor.actions.dead||null):
         playerAriseTimer>0?(playerActor.actions.arise||playerActor.actions.idle||null):
         playerManualAnimation?(playerActor.actions[playerManualAnimation]||null):
-        (a.jumping||a.punching||a.sneaking||a.vehicleExiting||(a.vehicleEntering&&(a.vehicleEntryProgress||0)>=.38))?null:
+        manualHandshakeActive?(playerActor.actions.idle||null):
+        a.punching?(playerActor.actions.punch||null):
+        (a.jumping||a.sneaking||a.vehicleExiting||(a.vehicleEntering&&(a.vehicleEntryProgress||0)>=.38))?null:
         a.vehicleEntering?(playerActor.actions.walk||null):
         a.moving?(a.running?(a.moveAmount>=.95?(playerActor.actions.runFast||playerActor.actions.run||playerActor.actions.walk):(playerActor.actions.run||playerActor.actions.walk)):
           (a.moveAmount<.25?(playerActor.actions.casualWalk||playerActor.actions.walk):(playerActor.actions.walk||playerActor.actions.run))):
-        idleEligible?(playerAlerting?(playerActor.actions.alert||playerActor.actions.idle||null):(playerActor.actions.idle||null)):null;
+        idleEligible?(idleCycleTime<0?null:(playerAlerting?(playerActor.actions.alert||playerActor.actions.idle||null):(playerActor.actions.idle||null))):null;
+      if(a.punching&&playerActor.actions.punch){playerActor.actions.punch.setLoop(THREE.LoopOnce,1);playerActor.actions.punch.clampWhenFinished=true;}
       switchAction(playerActor.actions,playerAction,false,playerActor.restPose);
        const stride=Math.max(0,Math.min(1,Number(a.moveAmount)||0));
        if(playerActor.actions.walk)playerActor.actions.walk.timeScale=a.sneaking?(.22+.32*stride):(.38+.82*stride);
        if(playerActor.actions.run)playerActor.actions.run.timeScale=.45+.90*stride;
        playerActor.actions.mixer.update(dt);
-       if(!a.playerDown&&playerAriseTimer<=0&&!playerManualAnimation)applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0,playerFoldWeight,playerAlerting);
+       if(playerManualAnimation)resetManualRootMotion(playerActor);
+       else if(manualHandshakeActive)applyHandshakePose(playerActor,t);
+       else if(!a.playerDown&&playerAriseTimer<=0&&!(a.punching&&playerActor.actions.punch))applyHumanMotion(playerActor,a.moving||a.jumping||a.vehicleEntering||a.vehicleExiting,a.punching,a.punchTime,a.sneaking,t,a.jumping,a.sprintJump,a.jumpHeight,a.landingWeight,a.landingSprint,!!a.vehicleEntering,!!a.vehicleExiting,a.vehicleEntryProgress||0,a.vehicleExitProgress??1,a.jumpVelocity||0,playerFoldWeight,playerAlerting);
        // Follow the camera orbit with a small, smooth head glance only.
        // The neutral camera angle equals the neutral head angle; no 360-degree spin.
        if(!p.inCar&&!a.playerDown){
@@ -4434,9 +4471,12 @@ const playerActor=makeHuman(true);
          actor.shadow.scale.set(npcDown?.35:.26,npcDown?.56:.42,1);
          const npcMoving=npc.state==='walking'||npc.state==='combat';
         let npcAction=null;
+        const manualNpcActive=manualAnimationNpcIndex===i&&(!!playerManualAnimation||manualHandshakeActive);
         const danceNames=['allNightDance','boomDance','youGroove','skill01'];
         if(npc.state==='down')npcAction=actor.actions.dead||null;
         else if(npc.state==='gettingUp')npcAction=actor.actions.arise||null;
+        else if(manualNpcActive)npcAction=manualHandshakeActive?(actor.actions.idle||null):(actor.actions[playerManualAnimation]||null);
+        else if(npc.punchTimer>0)npcAction=actor.actions.punch||null;
         else if(actor.userData.npcDanceTime>0){
           const activeDance=danceNames.find(name=>actor.actions[name]===actor.actions.active);
           npcAction=activeDance?actor.actions[activeDance]:null;
@@ -4451,9 +4491,12 @@ const playerActor=makeHuman(true);
         }
         if(!npcAction&&!npcDown&&!npcMoving)npcAction=actor.actions.idle||null;
         if(!npcAction&&npcMoving)npcAction=actor.actions.walk||actor.actions.run||null;
+        if(npc.punchTimer>0&&actor.actions.punch){actor.actions.punch.setLoop(THREE.LoopOnce,1);actor.actions.punch.clampWhenFinished=true;}
         switchAction(actor.actions,npcAction,false,actor.restPose);
         actor.actions.mixer.update(dt);
-        if(npc.state!=='down'&&npc.state!=='gettingUp'&&actor.userData.npcDanceTime<=0)
+        if(manualNpcActive&&playerManualAnimation)resetManualRootMotion(actor);
+        else if(manualNpcActive&&manualHandshakeActive)applyHandshakePose(actor,t);
+        else if(!manualNpcActive&&npc.state!=='down'&&npc.state!=='gettingUp'&&actor.userData.npcDanceTime<=0&&!(npc.punchTimer>0&&actor.actions.punch))
           applyHumanMotion(actor,npcMoving,npc.punchTimer>0,npc.punchTimer,false,t);
          // Nearby NPCs glance toward the player; distant NPCs make tiny,
          // occasional idle glances. Their torso and feet keep their own heading.
