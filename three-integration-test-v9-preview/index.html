@@ -3187,6 +3187,75 @@ showToast('Tap ENTER DINDU CITY to begin.');
     }
     applyDinduPlayerWardrobe(playerTemplate);
 
+    // Each pedestrian gets an independent cloned mesh/material set and a distinct look.
+    // Only NPC clones are modified; the player's source GLB stays exactly as authored.
+    const dinduNpcLooks=[
+      {top:0x28634e,pants:0x202a36,shoes:0xd2c3a2,skin:0x8c573c,hair:0x181614,style:'curls'},
+      {top:0x9b4e31,pants:0x343d50,shoes:0x292b2e,skin:0xb87551,hair:0x30231c,style:'high'},
+      {top:0xb6a16a,pants:0x292b30,shoes:0xe4dfd4,skin:0x68402f,hair:0x171311,style:'bun'},
+      {top:0x455b86,pants:0x45413a,shoes:0x292929,skin:0xd09a73,hair:0x3a261d,style:'beanie'}
+    ];
+    function applyDinduNpcAppearance(root,index){
+      const look=dinduNpcLooks[index%dinduNpcLooks.length];
+      root.traverse(mesh=>{
+        if(!mesh.isSkinnedMesh||!mesh.geometry||!mesh.skeleton)return;
+        const geometry=mesh.geometry.clone();
+        const position=geometry.attributes.position;
+        const joints=geometry.attributes.skinIndex;
+        const weights=geometry.attributes.skinWeight;
+        if(!position||!joints||!weights)return;
+        const bones=mesh.skeleton.bones||[];
+        const colors=new Float32Array(position.count*3);
+        for(let i=0;i<position.count;i++){
+          let strongest=0;
+          for(let k=1;k<4;k++)if(weights.getComponent(i,k)>weights.getComponent(i,strongest))strongest=k;
+          const bone=(bones[joints.getComponent(i,strongest)]?.name||'').replace(/^mixamorig:/i,'').toLowerCase();
+          const y=position.getY(i);
+          let hex=look.top;
+          if(/head/.test(bone))hex=y>1.60?look.hair:look.skin;
+          else if(/neck|hand|thumb|index|middle|ring|pinky/.test(bone))hex=look.skin;
+          else if(/foot|toe/.test(bone))hex=look.shoes;
+          else if(/upleg|leftleg|rightleg|hips/.test(bone))hex=look.pants;
+          new THREE.Color(hex).toArray(colors,i*3);
+        }
+        geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+        mesh.geometry=geometry;
+        const recolor=material=>{
+          const copy=material.clone();
+          copy.vertexColors=true;
+          if(copy.color)copy.color.set(0xffffff);
+          copy.needsUpdate=true;
+          return copy;
+        };
+        mesh.material=Array.isArray(mesh.material)?mesh.material.map(recolor):recolor(mesh.material);
+      });
+
+      // Add a small hair silhouette attached to the head bone so it follows every clip.
+      let head=null;
+      root.traverse(o=>{if(o.isBone&&o.name.replace(/^mixamorig:/i,'').toLowerCase()==='head')head=o;});
+      if(!head)return;
+      const hairMat=new THREE.MeshStandardMaterial({color:look.hair,roughness:.94,metalness:0});
+      const addHair=(geometry,x,y,z,sx,sy,sz)=>{
+        const part=new THREE.Mesh(geometry,hairMat);
+        part.position.set(x,y,z);part.scale.set(sx,sy,sz);
+        part.castShadow=true;part.receiveShadow=true;head.add(part);
+      };
+      const cap=new THREE.SphereGeometry(1,12,8,0,Math.PI*2,0,Math.PI*.56);
+      if(look.style==='curls'){
+        for(const [x,z,r] of [[-.075,0,.047],[-.025,-.025,.05],[.03,-.018,.05],[.078,.005,.044],[-.055,.055,.045],[.015,.075,.047],[.065,.06,.04]])
+          addHair(new THREE.SphereGeometry(1,8,6),x,.085,z,r,r*.9,r);
+      }else if(look.style==='high'){
+        addHair(cap,0,.055,0,.126,.078,.128);
+        addHair(new THREE.CylinderGeometry(.105,.125,.115,12),0,.125,0,1,1,1);
+      }else if(look.style==='bun'){
+        addHair(cap,0,.055,0,.125,.068,.127);
+        addHair(new THREE.SphereGeometry(1,10,8),0,.075,-.135,.058,.063,.065);
+      }else if(look.style==='beanie'){
+        addHair(new THREE.CylinderGeometry(.126,.135,.12,14),0,.095,0,1,1,1);
+        addHair(new THREE.SphereGeometry(1,12,8),0,.155,0,.126,.044,.128);
+      }
+    }
+
     // DINDU GTA V5 STREETWEAR: dark zip hoodie, tapered charcoal trousers and clean trainers.
     function styleDinduStreetwear(root){
       const palette={
@@ -3256,9 +3325,10 @@ showToast('Tap ENTER DINDU CITY to begin.');
     // styleDinduStreetwear(playerTemplate);
     playerTemplate.updateMatrixWorld(true);
 
-    const makeHuman=(cloneModel=true)=>{
+    const makeHuman=(cloneModel=true,npcVariant=null)=>{
       const group=new THREE.Group();
       const model=cloneModel?SkeletonUtils.clone(playerTemplate):playerTemplate;
+      if(npcVariant!==null)applyDinduNpcAppearance(model,npcVariant);
       model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
        group.add(model);
        scene.add(group);
@@ -4003,7 +4073,7 @@ const playerActor=makeHuman(true);
     // natural shoulder/chest width. This changes X only, never vertical scale.
     playerActor.model.scale.x *= 1.08;
     playerActor.model.updateMatrixWorld(true);
-    const npcActors=link.npcs.map(()=>makeHuman(true));
+    const npcActors=link.npcs.map((npc,i)=>makeHuman(true,i));
     const parkedActors=link.parkedCars.map(car=>makeCar(car.color,car.modelType||'sedan'));
     const trafficActors=link.trafficCars.map(car=>makeCar(car.color,car.modelType||'sedan'));
     const activeCar=new THREE.Group();
@@ -4458,7 +4528,7 @@ const playerActor=makeHuman(true);
          applyHeadLook(playerActor,headYaw,headPitch,1,dt);
        }
       link.npcs.forEach((npc,i)=>{
-        if(!npcActors[i])npcActors[i]=makeHuman(true);
+        if(!npcActors[i])npcActors[i]=makeHuman(true,i);
         const actor=npcActors[i];
     actor.userData.npcDanceCooldown=(actor.userData.npcDanceCooldown|| (6+Math.random()*12))-dt;
     actor.userData.npcDanceTime=Math.max(0,(actor.userData.npcDanceTime||0)-dt);
