@@ -2762,11 +2762,12 @@ function requestDinduLandscape(){
 }
 function syncDinduRotatePrompt(){
  const prompt=document.getElementById('rotatePrompt');
- if(prompt)prompt.classList.toggle('active',dinduGameStarted&&innerHeight>innerWidth);
+ if(prompt)prompt.classList.toggle('active',innerHeight>innerWidth);
 }
 window.addEventListener('resize',()=>{positionDinduPlayButton();syncDinduRotatePrompt();},{passive:true});
 window.addEventListener('orientationchange',()=>{positionDinduPlayButton();syncDinduRotatePrompt();},{passive:true});
 positionDinduPlayButton();
+syncDinduRotatePrompt();
 document.getElementById('openHtmlBtn').addEventListener('click',()=>{
  if(dinduGameStarted)return;
  requestDinduLandscape();
