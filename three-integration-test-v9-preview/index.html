@@ -3145,6 +3145,41 @@ showToast('Tap ENTER DINDU CITY to begin.');
     const playerTemplate=playerGLTF.scene;
     const playerFit=fitModel(playerTemplate,1.78,null);
 
+    // Rig-aware colours for the single-mesh Mixamo character.
+    function applyDinduPlayerWardrobe(root){
+      root.traverse(mesh=>{
+        if(!mesh.isSkinnedMesh||!mesh.geometry||!mesh.skeleton)return;
+        const geometry=mesh.geometry;
+        const position=geometry.attributes.position;
+        const joints=geometry.attributes.skinIndex;
+        const weights=geometry.attributes.skinWeight;
+        if(!position||!joints||!weights)return;
+        const bones=mesh.skeleton.bones||[];
+        const colors=new Float32Array(position.count*3);
+        for(let i=0;i<position.count;i++){
+          let strongest=0;
+          for(let k=1;k<4;k++)
+            if(weights.getComponent(i,k)>weights.getComponent(i,strongest))strongest=k;
+          const bone=(bones[joints.getComponent(i,strongest)]?.name||'')
+            .replace(/^mixamorig:/i,'').toLowerCase();
+          const y=position.getY(i);
+          let hex=0x18232f;
+          if(/head/.test(bone))hex=y>1.60?0x191a1b:0xb97855;
+          else if(/neck|hand|thumb|index|middle|ring|pinky/.test(bone))hex=0xb97855;
+          else if(/foot|toe/.test(bone))hex=0xd9ddd9;
+          else if(/upleg|leftleg|rightleg|hips/.test(bone))hex=0x252a31;
+          new THREE.Color(hex).toArray(colors,i*3);
+        }
+        geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+        mesh.material=new THREE.MeshStandardMaterial({
+          vertexColors:true,roughness:.88,metalness:0,side:THREE.DoubleSide
+        });
+        mesh.castShadow=true;
+        mesh.receiveShadow=true;
+      });
+    }
+    applyDinduPlayerWardrobe(playerTemplate);
+
     // DINDU GTA V5 STREETWEAR: dark zip hoodie, tapered charcoal trousers and clean trainers.
     function styleDinduStreetwear(root){
       const palette={
@@ -3290,7 +3325,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
          }
          if(/neck|head/.test(name))headBones.push({bone:o,name,x:o.rotation.x,y:o.rotation.y,z:o.rotation.z,neck:/neck/.test(name)});
        });
-       return {group,shadow,model,modelPosition,rootMotionBones,rig,actions,breathBones,armBones,legBones,headBones,restPose,
+       return {group,shadow,model,modelPosition,rootMotionBones,rig,actions,breathBones,armBones,legBones,headBones,restPose,userData:{},
        };
     };
     const switchAction=(actions,next,freeze=false,restPose=null)=>{
@@ -3924,6 +3959,7 @@ showToast('Tap ENTER DINDU CITY to begin.');
 const playerActor=makeHuman(true);
     window.__DINDU3D_ANIMATION_API__ = {
       play(name){
+        if(!window.__DINDU3D_MODE)return false;
         const action=playerActor.actions[name];
         if(!action)return false;
         playerManualAnimation=name;
@@ -4477,8 +4513,13 @@ const playerActor=makeHuman(true);
     console.error('DINDU GTA real-3D integration failed:',error);
     window.__DINDU3D_MODE=false;
     if(overlay)overlay.remove();
+    delete window.__DINDU3D_ANIMATION_API__;
     status.classList.add('error');
-    status.textContent='3D MODEL LOAD FAILED · ORIGINAL ACTORS RESTORED';
+    status.textContent='3D MODEL LOAD FAILED: '+(error&&error.message?error.message:String(error));
+    status.style.setProperty('display','block','important');
+    status.style.setProperty('visibility','visible','important');
+    status.style.maxWidth='88vw';
+    status.style.whiteSpace='normal';
   }
 })();
 </script>
