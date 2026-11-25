@@ -836,10 +836,6 @@ let cameraTargetCarOffset=cameraCarOffset;
 let cameraActualDistance=cameraDistance;
 let playerHealth=100;
 let playerDownTimer=0;
-let playerManualAnimation=null;
-let playerManualAnimationTimer=0;
-let playerWasDown=false;
-let playerAriseTimer=0;
 let playerHurtCooldown=0;
 const hospitalSpawn={x:-78,z:9};
 let npcPunchCooldown=0;
@@ -3005,14 +3001,17 @@ document.getElementById('closeAnimations').addEventListener('click',()=>{
 document.querySelectorAll('.manualAnimation').forEach(button=>{
   button.addEventListener('click',()=>{
     const name=button.dataset.animation;
-    if(!playerActor.actions[name]){
-      showToast('That animation is unavailable in this model.');
+    const api=window.__DINDU3D_ANIMATION_API__;
+    if(!api || !api.play(name)){
+      showToast('Character animations are still loading or unavailable.');
       return;
     }
-    playerManualAnimation=name;
-    playerManualAnimationTimer=Math.max(0.1,playerActor.actions[name].getClip().duration);
     closeOverlay('animationsOverlay');
-    if(paused)document.getElementById('welcome').classList.remove('hidden');
+    if(paused){
+      paused=false;
+      running=true;
+      closeOverlay('welcome');
+    }
   });
 });
 document.getElementById('pauseBtn').addEventListener('click',pauseGame);
@@ -3079,6 +3078,8 @@ showToast('Tap ENTER DINDU CITY to begin.');
     const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
     const SkeletonUtils=await import('three/addons/utils/SkeletonUtils.js');
     const link=window.__DINDU3D_LINK__;
+    let playerManualAnimation=null,playerManualAnimationTimer=0;
+    let playerWasDown=false,playerAriseTimer=0;
     if(!link||!link.player||!Array.isArray(link.obstacles)) throw new Error('Game-to-3D bridge was not found.');
 
     overlay=document.createElement('canvas');
@@ -3921,6 +3922,15 @@ showToast('Tap ENTER DINDU CITY to begin.');
       scene.add(group);return group;
     };
 const playerActor=makeHuman(true);
+    window.__DINDU3D_ANIMATION_API__ = {
+      play(name){
+        const action=playerActor.actions[name];
+        if(!action)return false;
+        playerManualAnimation=name;
+        playerManualAnimationTimer=Math.max(0.1,action.getClip().duration);
+        return true;
+      }
+    };
     // Keep the fitted height at 1.78m, but give the on-foot player a little more
     // natural shoulder/chest width. This changes X only, never vertical scale.
     playerActor.model.scale.x *= 1.08;
